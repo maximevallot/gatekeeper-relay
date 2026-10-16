@@ -67,7 +67,7 @@ export async function post(
     body: opts.method === "GET" || opts.method === "OPTIONS" ? undefined : typeof body === "string" ? body : JSON.stringify(body),
   });
   const ctx = createExecutionContext();
-  const response = await worker.fetch(request, { ...baseEnv, ...opts.env } as Env, ctx);
+  const response = await worker.fetch(request as Request<unknown, IncomingRequestCfProperties>, { ...baseEnv, ...opts.env } as Env, ctx);
   await waitOnExecutionContext(ctx);
   return response;
 }
