@@ -1,0 +1,3 @@
+# Copy to .dev.vars to run `npm run dev` against the real API.
+# Never commit .dev.vars. In production the key is a Wrangler secret.
+ANTHROPIC_API_KEY=sk-ant-...

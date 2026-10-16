@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "gatekeeper-relay",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  // Prompts live in prompts/*.md and are bundled as plain text.
+  "rules": [{ "type": "Text", "globs": ["**/*.md"], "fallthrough": true }],
+  "observability": { "enabled": true },
+  "vars": {
+    "MODEL": "claude-haiku-5-5",
+    // Per install, per UTC day.
+    "MAX_CALLS_PER_INSTALL": "60",
+    "MAX_TOKENS_PER_INSTALL": "40000",
+    // Per client IP, per UTC day: stops one machine from minting fresh installIds.
+    "MAX_CALLS_PER_IP": "300",
+    // All installs together, per UTC day: the ceiling on what the key can spend.
+    "GLOBAL_DAILY_TOKENS": "3000000",
+    // The longest pass the gate may grant, whatever the model says.
+    "MAX_PASS_MINUTES": "10",
+    // Comma-separated exact origins, e.g. "chrome-extension://abcdef...".
+    // Empty means any chrome-extension:// origin (Chrome and Brave both use it).
+    "ALLOWED_ORIGINS": ""
+  },
+  "kv_namespaces": [
+    // Replace the id with the one `npx wrangler kv namespace create SORT_CACHE` prints.
+    { "binding": "SORT_CACHE", "id": "REPLACE_WITH_KV_NAMESPACE_ID" }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "QUOTA", "class_name": "Quota" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Quota"] }]
+}
