@@ -2,9 +2,9 @@
 
 The server that stands between the Gatekeeper browser extension and Claude. It holds the Anthropic API key as a Cloudflare secret, so the key never ships inside the extension, and it enforces the limits that keep a student, or someone abusing the endpoint, from spending more than a few cents a day.
 
-It is a Cloudflare Worker in TypeScript. It has two endpoints, both `POST` with a JSON body, and one model: Claude Haiku 5.5 (`claude-haiku-5-5`, the newest Haiku as of 2026-10-16, $0.10 per million input tokens and $0.50 per million output tokens).
+It is a Cloudflare Worker in TypeScript. It has four endpoints, all `POST` with a JSON body, and one model: Claude Haiku 5.5 (`claude-haiku-5-5`, the newest Haiku as of 2026-10-16, $0.10 per million input tokens and $0.50 per million output tokens).
 
-Milestone 1 of Gatekeeper makes no network calls. This relay is for milestone 2: the gate's single box for a real need, and sorting sites the extension does not know into a kind.
+Milestone 1 of Gatekeeper makes no network calls. Milestone 2 uses `/gate` (the gate's single box for a real need) and `/sort` (sorting sites the extension does not know into a kind). Milestone 3 adds `/rules` (the rules chat) and `/judge` (YouTube video rules); its design is `~/brain/outputs/html/2026-10-16-gatekeeper-rules-by-talking.html`.
 
 ## Endpoints
 
@@ -52,6 +52,40 @@ Sorts a domain the extension does not know, such as `agar.io`, into one kind: `s
 - A refusal or an answer off the list returns `other` and is not cached, so the next request tries again.
 - `installId` is not in the original spec for this endpoint; it is required here so the daily caps apply to it too.
 
+### `POST /rules`
+
+The rules chat on the extension's rules page: the student's words in, a list of rule changes out. The extension applies nothing by itself; it shows the changes as a card and the student presses Apply, and its engine decides what applies now and what waits for the next morning.
+
+```json
+{
+  "installId": "…", "message": "block YouTube videos about video games but keep educational ones",
+  "today": "2026-10-19",
+  "history": [{ "role": "user" | "gatekeeper", "text": "…" }],
+  "rules": { "kinds": { "video": 20 }, "sites": { "openfront.io": "games" },
+             "videos": [{ "id": "v1", "site": "youtube.com", "about": "…", "except": "…", "minutes": 0 }], "dayStart": 4 }
+}
+→ { "reply": "…", "question": null, "diff": [ { "op": "addVideo", "site": "youtube.com", "about": "…", "except": "…", "minutes": null, "words": { "match": […], "except": […] } } ] }
+```
+
+- Operations: `budget` {kind, minutes}, `unwatch` {kind}, `site` {domain, kind}, `unsite` {domain}, `addVideo`, `videoBudget` {id, minutes}, `dropVideo` {id}, `dayStart` {hour}. A video rule's `minutes` is 0 (closed), a number (its own daily minutes) or `null` (free).
+- The server checks every operation (`enforceRules` in [src/rules.ts](src/rules.ts)): known kinds only, minutes clamped to 0–1440, video rules only on youtube.com and only for ids the student has, domains normalized, at most 10 operations. A `question` replaces any change. A refusal or junk gets a plain reply and no change.
+- No usage is sent: no minutes used, no passes.
+- Limits: `message` 1–500 characters, `history` up to 6 turns, up to 100 own sites and 20 video rules; the body may be up to 24 KB (8 KB for the other endpoints).
+
+### `POST /judge`
+
+Which of the student's video rules one YouTube video falls under.
+
+```json
+{ "installId": "…", "site": "youtube.com", "title": "I played Minecraft for 100 days", "channel": "SomeGamer",
+  "rules": [{ "id": "v1", "about": "video games: …", "except": "educational videos about games" }] }
+→ { "rule": "v1" | null, "judged": true }
+```
+
+- `judged: false` means the model refused or named no rule it was sent; the extension then judges by the rule's word lists on the device.
+- Nothing is cached or stored: a list of video titles says too much about a person. The extension keeps the answer per video ID.
+- The video's address is never sent; the extension gets the title and channel from YouTube's oEmbed address.
+
 ### Errors
 
 Every error is JSON `{ "error": "<code>" }`.
@@ -77,6 +111,8 @@ All are `vars` in [wrangler.jsonc](wrangler.jsonc), counted per UTC day in a Dur
 | `MAX_CALLS_PER_IP` | 300 | One machine minting fresh installIds to reset its caps. |
 | `GLOBAL_DAILY_TOKENS` | 3000000 | Everything together. At Haiku 5.5 prices this is at most $0.30 a day if all input, $1.50 if all output. |
 | `MAX_PASS_MINUTES` | 10 | The longest pass the gate may grant. |
+| `MAX_RULES_PER_INSTALL` | 20 | Rules chat messages per install. They also count against the install's shared caps above. |
+| `MAX_JUDGE_PER_INSTALL` | 150 | Videos judged per install: an allowance of its own, outside the install's shared caps, so watching YouTube does not use up the gate. Counts against the IP and global caps. |
 | `ALLOWED_ORIGINS` | empty | Empty allows any `chrome-extension://` origin (Chrome and Brave). Set it to the extension's own origin once it has a fixed ID. |
 
 `installId` must be a UUID. The extension makes one with `crypto.randomUUID()` on first run and keeps it in `chrome.storage.local`.
@@ -87,14 +123,18 @@ Estimated from the prompt sizes; no real call has been made yet.
 
 - A gate sends about 1,000 to 1,200 input tokens (the [gate prompt](prompts/gate.md) is about 3,300 characters, plus the context) and gets back about 50 tokens of JSON, plus whatever the model thinks at `effort: low`. Call it 1,200 in and 250 out: about $0.00025, so roughly 4,000 gates per dollar.
 - A sort is about 600 in and 50 out: about $0.0001, once per domain for all users.
+- A rules chat message is about 1,800 in (the prompt is about 5,000 characters, plus the rules) and 300 out: about $0.0003.
+- A video judgment is about 500 in and 30 out: about $0.00006, so 150 videos, the daily allowance, cost about a cent.
 - The first real calls should confirm this: the Anthropic Console shows token counts per request.
 
 ## Prompts
 
-The two prompts are plain Markdown files, bundled into the Worker as text:
+The prompts are plain Markdown files, bundled into the Worker as text:
 
 - [prompts/gate.md](prompts/gate.md): the gate's rules, decisions and reply style.
 - [prompts/sort.md](prompts/sort.md): the eight kinds with examples.
+- [prompts/rules.md](prompts/rules.md): the rule model and the operations the chat may return.
+- [prompts/judge.md](prompts/judge.md): judging one video against the student's video rules.
 
 Editing a prompt needs only a redeploy. If you change the kinds or how sorting works, bump `CACHE_PREFIX` in [src/sort.ts](src/sort.ts) (`kind:v1:` to `kind:v2:`) so old answers are not reused.
 
@@ -104,6 +144,8 @@ What the person typed and the page title are wrapped in `<message>` and `<title>
 
 - The relay logs no request bodies. What a student types at the gate goes to the Anthropic API and nowhere else; Anthropic's commercial API terms govern what they keep.
 - The sort cache stores only `domain → kind`. Page titles are sent to Claude and not stored.
+- `/judge` stores and caches nothing; `/rules` stores nothing. Video titles, channels, rules and chat messages go to the Anthropic API and nowhere else.
+- The public policy is [pages/privacy.html](pages/privacy.html), served at `/privacy`. Deploy it in the same deploy that adds or changes what an endpoint receives.
 - The quota counters store a day, a call count and a token count per install and per IP. Durable Objects are addressed by a hash of the name, and the relay never lists them.
 
 ## Running it locally
@@ -119,7 +161,7 @@ npm run check
 `npm run check` runs three things, none of which needs a key or an account or touches the network:
 
 1. `npm run typecheck`: TypeScript.
-2. `npm test`: 25 vitest tests inside the Workers runtime (`@cloudflare/vitest-plugin`), with a mocked Anthropic API. They cover the request sent to Claude, the minute clamp, refusals and bad output, upstream failures, installId and field validation, every cap, the sort cache, and origins.
+2. `npm test`: 38 vitest tests inside the Workers runtime (`@cloudflare/vitest-plugin`), with a mocked Anthropic API. They cover the request sent to Claude, the minute clamp, refusals and bad output, upstream failures, installId and field validation, every cap, the sort cache, origins, and the rules chat and video judge (their checks on the model output, input validation and allowances).
 3. `npm run smoke`: starts the real Worker under `wrangler dev`, points it at a fake Anthropic server on localhost ([scripts/mock-anthropic.mjs](scripts/mock-anthropic.mjs)) and checks both endpoints end to end.
 
 To try it against the real API locally, copy `.dev.vars.example` to `.dev.vars`, put a key in it, and run `npm run dev`. `.dev.vars` is git-ignored.

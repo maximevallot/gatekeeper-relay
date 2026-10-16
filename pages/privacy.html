@@ -24,27 +24,29 @@
 <body>
 <main>
 <h1>Gatekeeper privacy policy</h1>
-<p class="muted">Last updated 17 October 2026 (clarified what the talking gate sends, and which tabs are checked). Applies to the Gatekeeper browser extension.</p>
+<p class="muted">Last updated 16 October 2026 (added changing your rules by chat, and rules about kinds of YouTube videos). Applies to the Gatekeeper browser extension.</p>
 
 <p>Gatekeeper is made by Maxime Vallot, an individual developer. Contact: mvallot22@gmail.com.</p>
 
 <h2>The short version</h2>
 <ul>
-  <li>Your rules, your budgets and the time you spend on sites stay in your browser. The one exception: when you use the talking gate, the message sends the few facts it needs to answer, listed below.</li>
+  <li>Your rules, your budgets and the time you spend on sites stay in your browser. Two exceptions: when you use the talking gate, the message sends the few facts it needs to answer; and when you change your rules by chat, your rules are sent so they can be changed. Both are listed below. The time you spend on sites is never sent by the chat.</li>
   <li>Gatekeeper never reads what is on a web page. It has no code that runs inside web pages.</li>
-  <li>Two features send a little data to our server, and both are off until you turn them on: the gate that can talk back, and sorting sites Gatekeeper doesn't know. Gatekeeper asks you before the first request.</li>
+  <li>Four features send a little data to our server, and all are off until you turn them on: the gate that can talk back, sorting sites Gatekeeper doesn't know, changing your rules by chat, and judging YouTube videos for your video rules. Gatekeeper asks you before the first request of each.</li>
   <li>We do not sell your data, use it for advertising, or build a profile of you.</li>
 </ul>
 
 <h2>What stays in your browser</h2>
 <p>These are stored by your browser on your computer, in the extension's own storage. Removing the extension deletes them. None of it is sent anywhere, except the items listed in the next section, and only when you use those features.</p>
 <ul>
-  <li>Your rules: which kinds of site you limit, the minutes for each, your own sites, and the goal sentence you wrote.</li>
+  <li>Your rules: which kinds of site you limit, the minutes for each, your own sites, your video rules, and the goal sentence you wrote.</li>
   <li>Your usage: minutes spent on each kind of site today, passes the gate granted, and rule changes waiting for the next morning.</li>
   <li>The kind Gatekeeper decided each unknown site belongs to, so it does not ask again.</li>
+  <li>Which of your video rules each YouTube video you opened falls under, kept by video ID for the 300 most recent videos, so each is judged once.</li>
   <li>A random install number made when you install Gatekeeper.</li>
 </ul>
 <p>To work, Gatekeeper checks the address of the tab in front of you, and of any tab playing sound, every few seconds, on your computer, only to match it to a kind of site and count time. It also checks which sites your browser lets it see, so a site you take away from it stays closed.</p>
+<p>If you have a video rule, Gatekeeper asks YouTube, through YouTube's public oEmbed address, for the title and channel of each YouTube video you open, using the video's ID. YouTube already knows you are watching that video; nothing else is sent to YouTube. Without your yes to judging by Claude, the title and channel are compared with your video rules' words on your computer and go nowhere else.</p>
 
 <h2>What is sent to our server, and only if you turn it on</h2>
 <p>Our server is a small relay that passes a request to an AI model and returns the answer.</p>
@@ -53,10 +55,12 @@
   <tr><th>Feature</th><th>What is sent</th><th>When</th></tr>
   <tr><td>The gate can talk back</td><td>The site's domain (for example <code>youtube.com</code>, not the full address) and its kind, today's minutes and budget for that kind, your goal sentence, what you type at the gate, and your random install number</td><td>Only when you write a message at the gate and send it</td></tr>
   <tr><td>Sort sites Gatekeeper doesn't know</td><td>The site's domain, the page title, and your random install number</td><td>Once per unknown site, after it has been in front for about a minute</td></tr>
+  <tr><td>Change rules by chat</td><td>What you write in the chat on the rules page, the earlier messages of that chat, your rules (the kinds you limit and their minutes, your own sites, your video rules, the hour your day starts), today's date, and your random install number. Not the time you spent on any site.</td><td>Only when you send a message in the chat</td></tr>
+  <tr><td>Judge videos with Claude</td><td>The title and channel of a YouTube video, the wording of your video rules, and your random install number. Not the video's address.</td><td>Once per video you open on YouTube, and only while you have a video rule</td></tr>
 </table>
 </div>
-<p>Never sent: full page addresses, page content, your browsing history, your other rules, or anything from other tabs.</p>
-<p>You can turn either feature off at any time on the extension's rules page. Nothing is sent after that, and Gatekeeper keeps working with its built-in list of sites.</p>
+<p>Never sent: full page addresses, page content, your browsing history, anything from other tabs, or your rules other than to the rules chat.</p>
+<p>You can turn any of these off at any time on the extension's rules page. Nothing is sent after that, and Gatekeeper keeps working with its built-in list of sites; your video rules then match their words on your computer. Turning off judging by Claude also forgets which rule Claude said each video falls under.</p>
 
 <h2>Who receives it</h2>
 <ul>
@@ -70,7 +74,7 @@
   <li>For each install number and each network address: a count of AI requests and tokens per day, to cap use and prevent abuse. These counts are not linked to anything else about you.</li>
   <li>For each domain: the kind it was sorted into (for example <code>agar.io</code> is a game), for up to 90 days, shared by everyone and not linked to who asked.</li>
 </ul>
-<p>We do not store the domains you visit against your install number, page titles, your goal sentence or what you type at the gate.</p>
+<p>We do not store the domains you visit against your install number, page titles, video titles or channels, your rules, your goal sentence, or what you type at the gate or in the rules chat. Video judgments are not cached on our side.</p>
 
 <h2>What we never do</h2>
 <ul>
