@@ -4,7 +4,7 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
   // Prompts live in prompts/*.md and are bundled as plain text.
-  "rules": [{ "type": "Text", "globs": ["**/*.md"], "fallthrough": true }],
+  "rules": [{ "type": "Text", "globs": ["**/*.md", "**/*.html"], "fallthrough": true }],
   "observability": { "enabled": true },
   "vars": {
     "MODEL": "claude-haiku-5-5",

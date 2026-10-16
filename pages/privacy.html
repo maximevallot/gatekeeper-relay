@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gatekeeper privacy policy</title>
+<style>
+  :root { --bg: #fbfbfa; --fg: #1b1f24; --muted: #5d6670; --line: #dde1e5; --accent: #3d5afe; color-scheme: light dark; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #141414; --fg: #ececec; --muted: #a3a9b0; --line: #2c2f33; --accent: #8fa2ff; } }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  main { max-width: 42rem; margin: 0 auto; padding: 48px 20px 72px; }
+  h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 4px; }
+  h2 { font-size: 1.15rem; margin: 36px 0 8px; }
+  p, li { margin: 0 0 10px; }
+  .muted { color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; font-size: 0.95rem; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px 8px 0; border-top: 1px solid var(--line); }
+  th { font-weight: 600; }
+  code { font-size: 0.9em; }
+  a { color: var(--accent); }
+  .wrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+<main>
+<h1>Gatekeeper privacy policy</h1>
+<p class="muted">Last updated 17 October 2026. Applies to the Gatekeeper browser extension.</p>
+
+<p>Gatekeeper is made by Maxime Vallot, an individual developer. Contact: mvallot22@gmail.com.</p>
+
+<h2>The short version</h2>
+<ul>
+  <li>Your rules, your budgets and the time you spend on sites stay in your browser. We never receive them.</li>
+  <li>Gatekeeper never reads what is on a web page. It has no code that runs inside web pages.</li>
+  <li>Two features send a little data to our server, and both are off until you turn them on: the gate that can talk back, and sorting sites Gatekeeper doesn't know. Gatekeeper asks you before the first request.</li>
+  <li>We do not sell your data, use it for advertising, or build a profile of you.</li>
+</ul>
+
+<h2>What stays in your browser</h2>
+<p>These are stored by your browser on your computer, in the extension's own storage, and are never sent to us. Removing the extension deletes them.</p>
+<ul>
+  <li>Your rules: which kinds of site you limit, the minutes for each, your own sites, and the goal sentence you wrote.</li>
+  <li>Your usage: minutes spent on each kind of site today, passes the gate granted, and rule changes waiting for the next morning.</li>
+  <li>The kind Gatekeeper decided each unknown site belongs to, so it does not ask again.</li>
+  <li>A random install number made when you install Gatekeeper.</li>
+</ul>
+<p>To work, Gatekeeper checks the address of the tab in front of you every few seconds, on your computer, only to match it to a kind of site and count time.</p>
+
+<h2>What is sent to our server, and only if you turn it on</h2>
+<p>Our server is a small relay that passes a request to an AI model and returns the answer.</p>
+<div class="wrap">
+<table>
+  <tr><th>Feature</th><th>What is sent</th><th>When</th></tr>
+  <tr><td>The gate can talk back</td><td>The site's domain (for example <code>youtube.com</code>, not the full address) and its kind, today's minutes and budget for that kind, your goal sentence, what you type at the gate, and your random install number</td><td>Only when you write a message at the gate and send it</td></tr>
+  <tr><td>Sort sites Gatekeeper doesn't know</td><td>The site's domain, the page title, and your random install number</td><td>Once per unknown site, after it has been in front for about a minute</td></tr>
+</table>
+</div>
+<p>Never sent: full page addresses, page content, your browsing history, your other rules, or anything from other tabs.</p>
+<p>You can turn either feature off at any time on the extension's rules page. Nothing is sent after that, and Gatekeeper keeps working with its built-in list of sites.</p>
+
+<h2>Who receives it</h2>
+<ul>
+  <li><b>Cloudflare</b> runs our relay. Our relay does not log what you send. Cloudflare keeps its usual technical records of requests, such as time and network address, under its own terms.</li>
+  <li><b>Anthropic</b> provides the AI model (Claude). The relay sends it the data listed above so it can answer. Under Anthropic's commercial terms, API requests are not used to train its models, and Anthropic keeps them for a limited time under its own terms.</li>
+  <li>Nobody else. No advertisers, analytics companies or data brokers.</li>
+</ul>
+
+<h2>What we keep on our side</h2>
+<ul>
+  <li>For each install number and each network address: a count of AI requests and tokens per day, to cap use and prevent abuse. These counts are not linked to anything else about you.</li>
+  <li>For each domain: the kind it was sorted into (for example <code>agar.io</code> is a game), for up to 90 days, shared by everyone and not linked to who asked.</li>
+</ul>
+<p>We do not store the domains you visit against your install number, page titles, your goal sentence or what you type at the gate.</p>
+
+<h2>What we never do</h2>
+<ul>
+  <li>Sell your data or share it for advertising.</li>
+  <li>Use it for anything other than limiting the time you spend on distracting sites.</li>
+  <li>Let a person read it, unless you ask us to look into a problem, the law requires it, or we must investigate abuse.</li>
+</ul>
+
+<h2>Your choices</h2>
+<ul>
+  <li>Everything Gatekeeper keeps about you is in your browser. Change it on the rules page; remove the extension to delete it.</li>
+  <li>To have the daily counts for your install number deleted, write to mvallot22@gmail.com.</li>
+</ul>
+
+<h2>Security</h2>
+<p>Everything sent to our relay travels over HTTPS. The key to the AI model is held by the relay and never ships inside the extension.</p>
+
+<h2>Children</h2>
+<p>Gatekeeper is not meant for children under 13, and we do not knowingly collect their data.</p>
+
+<h2>Changes</h2>
+<p>If we change what Gatekeeper sends, the extension will say so and ask again before the change takes effect, and this page will show a new date.</p>
+
+<h2>Limited Use</h2>
+<p>Gatekeeper's use of information received from your browser adheres to the Chrome Web Store User Data Policy, including the Limited Use requirements.</p>
+</main>
+</body>
+</html>

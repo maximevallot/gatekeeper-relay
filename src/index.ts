@@ -4,6 +4,7 @@ import { gate } from "./gate";
 import { recordTokens, reserveCall } from "./quota";
 import { cachedKind, sort } from "./sort";
 import { BadRequest, gateInput, isObject, sortInput } from "./validate";
+import privacyPage from "../pages/privacy.html";
 
 export { Quota } from "./quota";
 
@@ -48,6 +49,12 @@ async function readBody(request: Request): Promise<Record<string, unknown>> {
 
 async function handle(request: Request, env: Env, ctx: ExecutionContext, origin: string | null): Promise<Response> {
   const { pathname } = new URL(request.url);
+  // The privacy policy the Chrome Web Store listing links to.
+  if (pathname === "/privacy" && (request.method === "GET" || request.method === "HEAD")) {
+    return new Response(request.method === "HEAD" ? null : privacyPage, {
+      headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=3600" },
+    });
+  }
   if (pathname !== "/gate" && pathname !== "/sort") return json({ error: "not_found" }, 404, origin);
   if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405, origin);
 
