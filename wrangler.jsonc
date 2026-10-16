@@ -23,7 +23,7 @@
   },
   "kv_namespaces": [
     // Replace the id with the one `npx wrangler kv namespace create SORT_CACHE` prints.
-    { "binding": "SORT_CACHE", "id": "REPLACE_WITH_KV_NAMESPACE_ID" }
+    { "binding": "SORT_CACHE", "id": "9d20de8cb9374e108d57e55f9bb805fd" }
   ],
   "durable_objects": {
     "bindings": [{ "name": "QUOTA", "class_name": "Quota" }]
