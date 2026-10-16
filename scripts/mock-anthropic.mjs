@@ -9,7 +9,30 @@ function answer(body) {
     const domain = /^domain: (.+)$/m.exec(user)?.[1] ?? "";
     return { kind: KINDS[domain] ?? "other" };
   }
-  const message = /<message>\n([\s\S]*)\n<\/message>/.exec(user)?.[1] ?? "";
+  if (body.system?.includes("You judge single videos")) {
+    const title = /<title>(.*)<\/title>/.exec(user)?.[1] ?? "";
+    if (/lecture|explained|tutorial/i.test(title)) return { rule: /- id: (v\d+)\n  about: educational/.exec(user)?.[1] ?? "none" };
+    if (/minecraft|fortnite|gameplay/i.test(title)) return { rule: /- id: (v\d+)\n  about: video games/.exec(user)?.[1] ?? "none" };
+    return { rule: "none" };
+  }
+  if (body.system?.includes("You change the rules of Gatekeeper")) {
+    const said = /<message>\n([\s\S]*)\n<\/message>/.exec(user)?.[1] ?? "";
+    if (/video games/i.test(said)) {
+      return {
+        reply: "You gave no limit for educational videos, so they are free.",
+        question: null,
+        diff: [
+          { op: "addVideo", site: "youtube.com", about: "video games: gameplay, let's plays, streams", except: "educational videos about games",
+            minutes: 0, words: { match: ["minecraft", "fortnite", "gameplay"], except: ["lecture", "explained", "tutorial"] } },
+          { op: "addVideo", site: "youtube.com", about: "educational: lectures, tutorials, explainers", except: "",
+            minutes: null, words: { match: ["lecture", "explained", "tutorial"], except: [] } },
+        ],
+      };
+    }
+    if (/instagram/i.test(said)) return { reply: "Social: 40 minutes a day.", question: null, diff: [{ op: "budget", kind: "social", minutes: 40 }] };
+    return { reply: "", question: "Which sites or videos, and how many minutes a day?", diff: [] };
+  }
+const message = /<message>\n([\s\S]*)\n<\/message>/.exec(user)?.[1] ?? "";
   if (/lecture/i.test(message)) return { decision: "allow", minutes: 30, reply: "Five minutes for the lecture recording." };
   if (/class/i.test(message)) return { decision: "ask", minutes: 0, reply: "Which class, and what do you need?" };
   return { decision: "deny", minutes: 0, reply: "No." };

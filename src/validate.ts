@@ -98,3 +98,136 @@ export function sortInput(body: Obj): SortInput {
     title: str(body, "title", 200, false),
   };
 }
+
+// ---------- video rules and the rules chat (milestone 3) ----------
+
+const VIDEO_ID = /^v[0-9]{1,6}$/;
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+export const VIDEO_SITES = ["youtube.com"] as const;
+
+export interface VideoRuleText {
+  id: string;
+  about: string;
+  except: string;
+}
+
+export interface JudgeInput {
+  installId: string;
+  site: string;
+  title: string;
+  channel: string;
+  rules: VideoRuleText[];
+}
+
+function plain(v: unknown, key: string, max: number, required: boolean): string {
+  if (v === undefined || v === null) {
+    if (required) throw new BadRequest(`missing_${key}`);
+    return "";
+  }
+  if (typeof v !== "string") throw new BadRequest(`invalid_${key}`);
+  const s = v.replace(/\s+/g, " ").trim();
+  if (required && !s) throw new BadRequest(`missing_${key}`);
+  if (s.length > max) throw new BadRequest(`${key}_too_long`);
+  return s;
+}
+
+function videoRuleTexts(raw: unknown, max: number): VideoRuleText[] {
+  if (!Array.isArray(raw) || raw.length > max) throw new BadRequest("invalid_rules");
+  const ids = new Set<string>();
+  return raw.map((r) => {
+    if (!isObject(r) || typeof r.id !== "string" || !VIDEO_ID.test(r.id) || ids.has(r.id)) throw new BadRequest("invalid_rules");
+    ids.add(r.id);
+    return { id: r.id, about: plain(r.about, "about", 200, true), except: plain(r.except, "except", 200, false) };
+  });
+}
+
+export function judgeInput(body: Obj): JudgeInput {
+  const site = domain(body.site, "site");
+  if (!(VIDEO_SITES as readonly string[]).includes(site)) throw new BadRequest("invalid_site");
+  const rules = videoRuleTexts(body.rules, 20);
+  if (!rules.length) throw new BadRequest("invalid_rules");
+  return {
+    installId: installId(body),
+    site,
+    title: plain(body.title, "title", 200, true),
+    channel: plain(body.channel, "channel", 100, false),
+    rules,
+  };
+}
+
+export interface VideoRuleState extends VideoRuleText {
+  site: string;
+  /** null: free. 0: closed. Otherwise its own minutes a day. */
+  minutes: number | null;
+}
+
+export interface RulesState {
+  kinds: Partial<Record<Kind, number>>;
+  sites: Record<string, Kind>;
+  videos: VideoRuleState[];
+  dayStart: number;
+}
+
+export interface Turn {
+  role: "user" | "gatekeeper";
+  text: string;
+}
+
+export interface RulesInput {
+  installId: string;
+  message: string;
+  today: string;
+  history: Turn[];
+  rules: RulesState;
+}
+
+function ruleMinutes(v: unknown): number {
+  if (typeof v !== "number" || !Number.isFinite(v) || v < 0 || v > 1440) throw new BadRequest("invalid_rules");
+  return Math.round(v);
+}
+
+function rulesState(raw: unknown): RulesState {
+  if (!isObject(raw)) throw new BadRequest("invalid_rules");
+  const kinds: Partial<Record<Kind, number>> = {};
+  if (!isObject(raw.kinds ?? {})) throw new BadRequest("invalid_rules");
+  for (const [k, v] of Object.entries((raw.kinds ?? {}) as Obj)) {
+    if (!(KINDS as readonly string[]).includes(k)) throw new BadRequest("invalid_rules");
+    kinds[k as Kind] = ruleMinutes(v);
+  }
+  const sites: Record<string, Kind> = {};
+  const rawSites = (raw.sites ?? {}) as Obj;
+  if (!isObject(rawSites) || Object.keys(rawSites).length > 100) throw new BadRequest("invalid_rules");
+  for (const [d, k] of Object.entries(rawSites)) {
+    if (typeof k !== "string" || !(KINDS as readonly string[]).includes(k)) throw new BadRequest("invalid_rules");
+    sites[domain(d, "rules")] = k as Kind;
+  }
+  if (!Array.isArray(raw.videos ?? []) || ((raw.videos ?? []) as unknown[]).length > 20) throw new BadRequest("invalid_rules");
+  const texts = videoRuleTexts(raw.videos ?? [], 20);
+  const videos = texts.map((t, i) => {
+    const v = (raw.videos as Obj[])[i]!;
+    if (!(VIDEO_SITES as readonly string[]).includes(String(v.site))) throw new BadRequest("invalid_rules");
+    const m = v.minutes === null || v.minutes === undefined ? null : ruleMinutes(v.minutes);
+    return { ...t, site: String(v.site), minutes: m };
+  });
+  const ds = raw.dayStart ?? 4;
+  if (typeof ds !== "number" || !Number.isInteger(ds) || ds < 0 || ds > 23) throw new BadRequest("invalid_rules");
+  return { kinds, sites, videos, dayStart: ds };
+}
+
+export function rulesInput(body: Obj): RulesInput {
+  const today = body.today;
+  if (typeof today !== "string" || !DAY.test(today)) throw new BadRequest("invalid_today");
+  const rawHistory = body.history ?? [];
+  if (!Array.isArray(rawHistory) || rawHistory.length > 6) throw new BadRequest("invalid_history");
+  const history = rawHistory.map((h) => {
+    if (!isObject(h) || (h.role !== "user" && h.role !== "gatekeeper")) throw new BadRequest("invalid_history");
+    return { role: h.role, text: plain(h.text, "history", 500, true) } as Turn;
+  });
+  return {
+    installId: installId(body),
+    message: str(body, "message", 500, true),
+    today,
+    history,
+    rules: rulesState(body.rules),
+  };
+}

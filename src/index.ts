@@ -1,14 +1,18 @@
 import { UpstreamError } from "./claude";
-import type { Env } from "./env";
+import { type Env, intVar } from "./env";
 import { gate } from "./gate";
+import { judge } from "./judge";
 import { recordTokens, reserveCall } from "./quota";
+import { rules } from "./rules";
 import { cachedKind, sort } from "./sort";
-import { BadRequest, gateInput, isObject, sortInput } from "./validate";
+import { BadRequest, gateInput, isObject, judgeInput, rulesInput, sortInput } from "./validate";
 import privacyPage from "../pages/privacy.html";
 
 export { Quota } from "./quota";
 
 const MAX_BODY_BYTES = 8 * 1024;
+const MAX_RULES_BODY_BYTES = 24 * 1024; // /rules carries the student's rules and a short conversation
+const PATHS = ["/gate", "/sort", "/judge", "/rules"];
 
 function allowedOrigin(origin: string | null, env: Env): boolean {
   if (origin === null) return true; // not a browser page: curl, tests, or an extension with host permission
@@ -34,9 +38,9 @@ function json(body: unknown, status: number, origin: string | null): Response {
   });
 }
 
-async function readBody(request: Request): Promise<Record<string, unknown>> {
+async function readBody(request: Request, max: number): Promise<Record<string, unknown>> {
   const text = await request.text();
-  if (text.length > MAX_BODY_BYTES) throw new BadRequest("body_too_large");
+  if (text.length > max) throw new BadRequest("body_too_large");
   let body: unknown;
   try {
     body = JSON.parse(text);
@@ -55,10 +59,10 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext, origin:
       headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=3600" },
     });
   }
-  if (pathname !== "/gate" && pathname !== "/sort") return json({ error: "not_found" }, 404, origin);
+  if (!PATHS.includes(pathname)) return json({ error: "not_found" }, 404, origin);
   if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405, origin);
 
-  const body = await readBody(request);
+  const body = await readBody(request, pathname === "/rules" ? MAX_RULES_BODY_BYTES : MAX_BODY_BYTES);
   const ip = request.headers.get("CF-Connecting-IP");
 
   if (pathname === "/sort") {
@@ -71,6 +75,29 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext, origin:
     const { kind, tokens } = await sort(env, input.domain, input.title);
     ctx.waitUntil(recordTokens(env, input.installId, tokens));
     return json({ kind }, 200, origin);
+  }
+
+  if (pathname === "/judge") {
+    // Nothing about the video is stored or cached: titles say too much about a person to keep.
+    const input = judgeInput(body);
+    const full = await reserveCall(env, input.installId, ip, {
+      name: "judge", maxCalls: intVar(env.MAX_JUDGE_PER_INSTALL, 150), shared: false,
+    });
+    if (full) return json({ error: "daily_limit", scope: full }, 429, origin);
+    const { result, tokens } = await judge(env, input);
+    ctx.waitUntil(recordTokens(env, input.installId, tokens, false));
+    return json(result, 200, origin);
+  }
+
+  if (pathname === "/rules") {
+    const input = rulesInput(body);
+    const full = await reserveCall(env, input.installId, ip, {
+      name: "rules", maxCalls: intVar(env.MAX_RULES_PER_INSTALL, 20), shared: true,
+    });
+    if (full) return json({ error: "daily_limit", scope: full }, 429, origin);
+    const { result, tokens } = await rules(env, input);
+    ctx.waitUntil(recordTokens(env, input.installId, tokens));
+    return json(result, 200, origin);
   }
 
   const input = gateInput(body);

@@ -17,6 +17,10 @@
     "GLOBAL_DAILY_TOKENS": "3000000",
     // The longest pass the gate may grant, whatever the model says.
     "MAX_PASS_MINUTES": "10",
+    // Rules chat messages per install per UTC day (each about 2,000 tokens, inside the install's shared caps).
+    "MAX_RULES_PER_INSTALL": "20",
+    // Videos judged per install per UTC day (about 600 tokens each), an allowance of their own.
+    "MAX_JUDGE_PER_INSTALL": "150",
     // Comma-separated exact origins, e.g. "chrome-extension://abcdef...".
     // Empty means any chrome-extension:// origin (Chrome and Brave both use it).
     "ALLOWED_ORIGINS": ""

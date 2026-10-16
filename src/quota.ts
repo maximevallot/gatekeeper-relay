@@ -48,18 +48,37 @@ function counter(env: Env, name: string) {
   return env.QUOTA.get(env.QUOTA.idFromName(name));
 }
 
+export interface Allowance {
+  /** A counter of its own per install, e.g. "rules" or "judge", with its own daily call cap. */
+  name: string;
+  maxCalls: number;
+  /** false: the call does not count against the install's shared caps (judging a video is frequent and small). */
+  shared: boolean;
+}
+
 /**
- * Reserves one call against the install, the client IP and the global ceiling.
- * Returns the scope that is full, or null when the call may go ahead.
+ * Reserves one call against the install (its own allowance first, if any), the client IP and the global
+ * ceiling. Returns the scope that is full, or null when the call may go ahead.
  */
-export async function reserveCall(env: Env, installId: string, ip: string | null): Promise<QuotaScope | null> {
+export async function reserveCall(
+  env: Env,
+  installId: string,
+  ip: string | null,
+  allowance?: Allowance,
+): Promise<QuotaScope | null> {
   const day = today();
-  const ok = await counter(env, `install:${installId}`).reserve(
-    day,
-    intVar(env.MAX_CALLS_PER_INSTALL, 60),
-    intVar(env.MAX_TOKENS_PER_INSTALL, 40000),
-  );
-  if (!ok) return "install";
+  if (allowance) {
+    const own = await counter(env, `${allowance.name}:${installId}`).reserve(day, allowance.maxCalls, null);
+    if (!own) return "install";
+  }
+  if (!allowance || allowance.shared) {
+    const ok = await counter(env, `install:${installId}`).reserve(
+      day,
+      intVar(env.MAX_CALLS_PER_INSTALL, 60),
+      intVar(env.MAX_TOKENS_PER_INSTALL, 40000),
+    );
+    if (!ok) return "install";
+  }
   if (ip) {
     const ipOk = await counter(env, `ip:${ip}`).reserve(day, intVar(env.MAX_CALLS_PER_IP, 300), null);
     if (!ipOk) return "ip";
@@ -69,11 +88,11 @@ export async function reserveCall(env: Env, installId: string, ip: string | null
   return null;
 }
 
-export async function recordTokens(env: Env, installId: string, tokens: number): Promise<void> {
+export async function recordTokens(env: Env, installId: string, tokens: number, shared = true): Promise<void> {
   if (tokens <= 0) return;
   const day = today();
   await Promise.all([
-    counter(env, `install:${installId}`).addTokens(day, tokens),
+    shared ? counter(env, `install:${installId}`).addTokens(day, tokens) : Promise.resolve(),
     counter(env, "global").addTokens(day, tokens),
   ]);
 }

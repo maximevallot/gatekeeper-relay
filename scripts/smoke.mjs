@@ -1,4 +1,4 @@
-// Runs the real Worker under `wrangler dev` against the fake Anthropic API and checks both endpoints.
+// Runs the real Worker under `wrangler dev` against the fake Anthropic API and checks every endpoint.
 // Usage: npm run smoke
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -87,11 +87,24 @@ try {
   r = await post("/sort", { domain: "agar.io", title: "" });
   check("sort rejects a missing installId", r.status === 400, r);
 
-  r = await post("/gate", gate("x"), { Origin: "https://evil.example" });
+  const rules = [
+    { id: "v1", about: "video games: gameplay, let's plays, streams", except: "educational videos about games" },
+    { id: "v2", about: "educational: lectures, tutorials, explainers", except: "" },
+  ];
+  r = await post("/judge", { installId: crypto.randomUUID(), site: "youtube.com", title: "Minecraft redstone computer explained", channel: "MIT OpenCourseWare", rules });
+  check("judge puts an explained Minecraft video under the educational rule", r.status === 200 && r.body.rule === "v2" && r.body.judged === true, r);
+
+  r = await post("/rules", {
+    installId: crypto.randomUUID(), message: "block YouTube videos about video games but keep educational ones", today: "2026-10-19",
+    history: [], rules: { kinds: { video: 20 }, sites: {}, videos: [], dayStart: 4 },
+  });
+  check("rules turns the example into two video rules", r.status === 200 && r.body.diff?.length === 2 && r.body.diff[0].minutes === 0 && r.body.diff[1].minutes === null, r);
+
+    r = await post("/gate", gate("x"), { Origin: "https://evil.example" });
   check("a web page origin is refused", r.status === 403, r);
 
   const upstream = mock.requests;
-  check("every upstream call used the key, Haiku 5.5 and a JSON schema", upstream.length === 4 && upstream.every(
+  check("every upstream call used the key, Haiku 5.5 and a JSON schema", upstream.length === 6 && upstream.every(
     (q) => q.key === KEY && q.body.model === "claude-haiku-5-5" && q.body.output_config?.format?.type === "json_schema",
   ), upstream.map((q) => ({ key: q.key, model: q.body.model })));
 } catch (err) {
