@@ -231,3 +231,31 @@ export function rulesInput(body: Obj): RulesInput {
     rules: rulesState(body.rules),
   };
 }
+
+export interface LoosenInput {
+  installId: string;
+  kind: "rules" | "exam";
+  goal: string;
+  /** What the student asked to loosen, in plain words. */
+  changes: string[];
+  /** The one question asked earlier about this request, if any. */
+  asked: string;
+  message: string;
+}
+
+/** A request to loosen a rule or end exam mode early, with the student's reason. */
+export function loosenInput(body: Obj): LoosenInput {
+  const kind = body.kind;
+  if (kind !== "rules" && kind !== "exam") throw new BadRequest("invalid_kind");
+  const raw = body.changes;
+  if (!Array.isArray(raw) || !raw.length || raw.length > 10) throw new BadRequest("invalid_changes");
+  const changes = raw.map((c) => plain(c, "changes", 200, true));
+  return {
+    installId: installId(body),
+    kind,
+    goal: plain(body.goal, "goal", 300, false),
+    changes,
+    asked: plain(body.asked, "asked", 300, false),
+    message: str(body, "message", 500, true),
+  };
+}

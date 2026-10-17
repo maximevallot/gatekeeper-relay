@@ -2,17 +2,18 @@ import { UpstreamError } from "./claude";
 import { type Env, intVar } from "./env";
 import { gate } from "./gate";
 import { judge } from "./judge";
+import { loosen } from "./loosen";
 import { recordTokens, reserveCall } from "./quota";
 import { rules } from "./rules";
 import { cachedKind, sort } from "./sort";
-import { BadRequest, gateInput, isObject, judgeInput, rulesInput, sortInput } from "./validate";
+import { BadRequest, gateInput, isObject, judgeInput, loosenInput, rulesInput, sortInput } from "./validate";
 import privacyPage from "../pages/privacy.html";
 
 export { Quota } from "./quota";
 
 const MAX_BODY_BYTES = 8 * 1024;
 const MAX_RULES_BODY_BYTES = 24 * 1024; // /rules carries the student's rules and a short conversation
-const PATHS = ["/gate", "/sort", "/judge", "/rules"];
+const PATHS = ["/gate", "/sort", "/judge", "/rules", "/loosen"];
 
 function allowedOrigin(origin: string | null, env: Env): boolean {
   if (origin === null) return true; // not a browser page: curl, tests, or an extension with host permission
@@ -96,6 +97,16 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext, origin:
     });
     if (full) return json({ error: "daily_limit", scope: full }, 429, origin);
     const { result, tokens } = await rules(env, input);
+    ctx.waitUntil(recordTokens(env, input.installId, tokens));
+    return json(result, 200, origin);
+  }
+
+  if (pathname === "/loosen") {
+    // A request to loosen a rule, with the student's reason. Nothing of it is stored.
+    const input = loosenInput(body);
+    const full = await reserveCall(env, input.installId, ip);
+    if (full) return json({ error: "daily_limit", scope: full }, 429, origin);
+    const { result, tokens } = await loosen(env, input);
     ctx.waitUntil(recordTokens(env, input.installId, tokens));
     return json(result, 200, origin);
   }
