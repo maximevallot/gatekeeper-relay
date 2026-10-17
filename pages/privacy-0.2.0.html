@@ -48,6 +48,9 @@
 <p>To work, Gatekeeper checks the address of the tab in front of you, and of any tab playing sound, every few seconds, on your computer, only to match it to a kind of site and count time. It also checks which sites your browser lets it see, so a site you take away from it stays closed.</p>
 <p>If you have a video rule, Gatekeeper asks YouTube, through YouTube's public oEmbed address, for the title and channel of each YouTube video you open, using the video's ID. YouTube already knows you are watching that video; nothing else is sent to YouTube. Without your yes to judging by Claude, the title and channel are compared with your video rules' words on your computer and go nowhere else.</p>
 
+<h2>Gatekeeper for Mac, if you connect it</h2>
+<p>If you install Gatekeeper for Mac and turn on "Mac app" in the extension's settings (your browser asks first), the extension shares with it, on your computer: your goal sentence, each watched kind's minutes for today and whether it is open or closed, and exam mode with its end time and goal. The Mac app keeps the latest copy in a file in your user folder (<code>~/Library/Application Support/Gatekeeper/today.json</code>), where other apps you run can read it. It can ask the extension to start exam mode, never to loosen anything. None of this goes to our server or to anyone else. Turn "Mac app" off, or remove either app, to stop it.</p>
+
 <h2>What is sent to our server, and only if you turn it on</h2>
 <p>Our server is a small relay that passes a request to an AI model and returns the answer.</p>
 <div class="wrap">
