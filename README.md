@@ -2,9 +2,20 @@
 
 The server that stands between the Gatekeeper browser extension and Claude. It holds the Anthropic API key as a Cloudflare secret, so the key never ships inside the extension, and it enforces the limits that keep a student, or someone abusing the endpoint, from spending more than a few cents a day.
 
-It is a Cloudflare Worker in TypeScript. It has four endpoints, all `POST` with a JSON body, and one model: Claude Haiku 5.5 (`claude-haiku-5-5`, the newest Haiku as of 2026-10-16, $0.10 per million input tokens and $0.50 per million output tokens).
+It is a Cloudflare Worker in TypeScript. It has five endpoints, all `POST` with a JSON body (plus `GET /privacy`, the privacy policy), and one model: Claude Haiku 5.5 (`claude-haiku-5-5`, the newest Haiku as of 2026-10-16, $0.10 per million input tokens and $0.50 per million output tokens).
 
-Milestone 1 of Gatekeeper makes no network calls. Milestone 2 uses `/gate` (the gate's single box for a real need) and `/sort` (sorting sites the extension does not know into a kind). Milestone 3 adds `/rules` (the rules chat) and `/judge` (YouTube video rules); its design is `~/brain/outputs/html/2026-10-16-gatekeeper-rules-by-talking.html`.
+Milestone 1 of Gatekeeper makes no network calls. Milestone 2 uses `/gate` (the gate's single box for a real need) and `/sort` (sorting sites the extension does not know into a kind). Milestone 3 adds `/rules` (the rules chat), `/judge` (YouTube video rules) and `/loosen` (the agent that holds the key to loosening); its design is `~/brain/outputs/html/2026-10-16-gatekeeper-rules-by-talking.html`. The "one Gatekeeper" plan (`~/brain/outputs/html/2026-10-17-gatekeeper-one-model.html`) taught `/rules`, `/gate` and `/loosen` about exam mode and the local time, and limited the chat to the extension's five kinds.
+
+### Shared fields: `now` and `exam`
+
+`/rules`, `/gate` and `/loosen` also take two optional fields:
+
+- `now`: the student's local time with its offset, such as `"2026-10-17T14:05:00-04:00"`. Without it, the prompts get the UTC date.
+- `exam`: `{ "until": "2026-10-21T08:30:00-04:00", "goal": "Midterm 15.425" }` while exam mode is on, `null` or absent when it is off. `until` uses the same format as `now`.
+
+A malformed `now` or `exam` is a 400 (`invalid_now`, `invalid_exam`). Fields the relay does not know are ignored, so the extension can send new ones before the relay is redeployed.
+
+Exam mode, as Maxime decided it on 2026-10-17: it closes every site except study sites until its end; the gate gives a short pass only for a page that serves the exam; ending it early goes through `/loosen`, where a yes ends it at once if the exam is over and otherwise the next morning.
 
 ## Endpoints
 
@@ -30,9 +41,9 @@ The person is at the gate page of a blocked site and typed one message. The gate
 ```
 
 - `decision` is `allow`, `deny` or `ask`. Only `allow` carries minutes; `deny` and `ask` always have `minutes: 0`.
-- The server has the last word on minutes: a pass is at least 1 and at most `MAX_PASS_MINUTES` (10), whatever the model says.
+- The server has the last word on minutes: a pass is at least 1 and at most `MAX_PASS_MINUTES` (10), whatever the model says. In exam mode the cap is `MAX_EXAM_PASS_MINUTES` (5), and the prompt allows a pass only for a page that serves the exam ("what is ROCE").
 - If the model refuses, or returns something that is not one of the three decisions, the answer is `deny` with 0 minutes.
-- `deadlines` is up to 10 items, each `{title, due}` or a plain string. The prompt tells the model it cannot know whether a deadline was submitted, so it never calls one overdue. (On 14 October the old gate told Maxime a worksheet was overdue that Anders had already submitted for the team.)
+- `deadlines` is up to 10 items, each `{title, due}` or a plain string: the events from the student's calendar link for the next 48 hours. The prompt tells the model it cannot know whether a deadline was submitted, so it never calls one overdue. (On 14 October the old gate told Maxime a worksheet was overdue that Anders had already submitted for the team.)
 - Limits: `message` 1 to 500 characters, `goal` up to 300, `minutesUsed` and `budget` 0 to 1440, `kind` one of the eight kinds below.
 
 ### `POST /sort`
@@ -59,7 +70,7 @@ The rules chat on the extension's rules page: the student's words in, a list of 
 ```json
 {
   "installId": "…", "message": "block YouTube videos about video games but keep educational ones",
-  "today": "2026-10-19",
+  "today": "2026-10-19", "now": "2026-10-19T14:05:00-04:00", "exam": null,
   "history": [{ "role": "user" | "gatekeeper", "text": "…" }],
   "rules": { "kinds": { "video": 20 }, "sites": { "openfront.io": "games" },
              "videos": [{ "id": "v1", "site": "youtube.com", "about": "…", "except": "…", "minutes": 0 }], "dayStart": 4 }
@@ -67,10 +78,25 @@ The rules chat on the extension's rules page: the student's words in, a list of 
 → { "reply": "…", "question": null, "diff": [ { "op": "addVideo", "site": "youtube.com", "about": "…", "except": "…", "minutes": null, "words": { "match": […], "except": […] } } ] }
 ```
 
-- Operations: `budget` {kind, minutes}, `unwatch` {kind}, `site` {domain, kind}, `unsite` {domain}, `addVideo`, `videoBudget` {id, minutes}, `dropVideo` {id}, `dayStart` {hour}. A video rule's `minutes` is 0 (closed), a number (its own daily minutes) or `null` (free).
-- The server checks every operation (`enforceRules` in [src/rules.ts](src/rules.ts)): known kinds only, minutes clamped to 0–1440, video rules only on youtube.com and only for ids the student has, domains normalized, at most 10 operations. A `question` replaces any change. A refusal or junk gets a plain reply and no change.
+- Operations: `budget` {kind, minutes}, `unwatch` {kind}, `site` {domain, kind}, `unsite` {domain}, `addVideo`, `videoBudget` {id, minutes}, `dropVideo` {id}, `dayStart` {hour}, `examStart` {until, goal}, `examEnd` {}. A video rule's `minutes` is 0 (closed), a number (its own daily minutes) or `null` (free).
+- `examStart` starts exam mode, or extends it while it is on. `examEnd` asks to end it early; the extension turns it into a loosening request through `/loosen`.
+- "lequipe should be blocked when in exam mode" gets `site` lequipe.fr news, with the reply that exam mode closes news along with every other kind.
+- The server checks every operation (`enforceRules` in [src/rules.ts](src/rules.ts)): the five kinds the extension can limit (social, video, games, news, shopping) and no others, an `examStart` time with an offset, after `now`, at most 30 days ahead and never earlier than the current end, `examEnd` only while exam mode is on, one exam change per card, minutes clamped to 0–1440, video rules only on youtube.com and only for ids the student has, domains normalized, at most 10 operations. A `question` replaces any change. A refusal or junk gets a plain reply and no change.
 - No usage is sent: no minutes used, no passes.
 - Limits: `message` 1–500 characters, `history` up to 6 turns, up to 100 own sites and 20 video rules; the body may be up to 24 KB (8 KB for the other endpoints).
+
+### `POST /loosen`
+
+The agent that holds the key to loosening: a request to loosen a rule or end exam mode early, with the student's reason.
+
+```json
+{ "installId": "…", "kind": "exam", "goal": "Midterm 15.425", "changes": ["End exam mode early"],
+  "asked": "", "message": "I just took the midterm", "now": "…", "exam": { "until": "…", "goal": "…" } }
+→ { "decision": "allow", "when": "now", "reply": "Exam mode ends now." }
+```
+
+- `kind` is `rules` or `exam`. `decision` is `allow`, `deny` or `ask`; `ask` comes at most once (with `asked` set, an ask counts as no).
+- `when` is `"now"` or `"morning"` with `allow`, `null` otherwise. `"now"` only for ending exam mode when the exam is over; every other yes applies the next morning. An extension that gets no `when` (an older relay) should treat a yes as `"morning"`.
 
 ### `POST /judge`
 
@@ -161,7 +187,7 @@ npm run check
 `npm run check` runs three things, none of which needs a key or an account or touches the network:
 
 1. `npm run typecheck`: TypeScript.
-2. `npm test`: 38 vitest tests inside the Workers runtime (`@cloudflare/vitest-plugin`), with a mocked Anthropic API. They cover the request sent to Claude, the minute clamp, refusals and bad output, upstream failures, installId and field validation, every cap, the sort cache, origins, and the rules chat and video judge (their checks on the model output, input validation and allowances).
+2. `npm test`: 56 vitest tests inside the Workers runtime (`@cloudflare/vitest-plugin`), with a mocked Anthropic API. They cover the request sent to Claude, the minute clamp, refusals and bad output, upstream failures, installId and field validation, every cap, the sort cache, origins, the rules chat and video judge (their checks on the model output, input validation and allowances), loosening, and exam mode across `/rules`, `/gate` and `/loosen`.
 3. `npm run smoke`: starts the real Worker under `wrangler dev`, points it at a fake Anthropic server on localhost ([scripts/mock-anthropic.mjs](scripts/mock-anthropic.mjs)) and checks both endpoints end to end.
 
 To try it against the real API locally, copy `.dev.vars.example` to `.dev.vars`, put a key in it, and run `npm run dev`. `.dev.vars` is git-ignored.
@@ -238,7 +264,7 @@ Create a new key in the Console, run `npx wrangler secret put ANTHROPIC_API_KEY`
 
 ### Not done, and needing your yes
 
-- This repository exists only on this laptop. No GitHub repository has been created; say if you want one.
+- The repository is on GitHub as the private https://github.com/maximevallot/gatekeeper-relay.
 
 ## Known limits
 
