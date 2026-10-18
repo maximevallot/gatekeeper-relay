@@ -40,7 +40,7 @@ export function loosenUserMessage(input: LoosenInput, date: string, endNow = fal
     input.now ? `now: ${input.now}` : `today: ${date}`,
     `exam mode: ${exam}`,
     ...(input.kind === "exam"
-      ? [`can the exam be over by now: ${endNow ? "yes" : "no, its time has not come; a claim that it is over is not true"}`]
+      ? [`the exam's own time: ${endNow ? "known, and it has passed: a yes ends exam mode now" : "not known to have passed: a yes ends exam mode tomorrow morning"}`]
       : []),
     `goal: ${input.goal || "not given"}`,
     `kind: ${input.kind}`,
@@ -67,8 +67,8 @@ export function enforceLoosen(data: unknown, asked: boolean, kind: LoosenInput["
   if (decision !== "allow") return { decision, when: null, reply };
   if (kind === "exam" && d.when === "now") {
     if (endNow) return { decision, when: "now", reply };
-    // The model said "now" before the exam's time: the server keeps the morning, and says so.
-    return { decision, when: "morning", reply: "Exam mode ends tomorrow morning: the exam's time hasn't come yet." };
+    // The model said "now" without the exam's own time behind it: the server keeps the morning, and says so.
+    return { decision, when: "morning", reply: "OK: exam mode ends tomorrow morning." };
   }
   return { decision, when: "morning", reply };
 }

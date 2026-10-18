@@ -92,6 +92,7 @@ The rules chat on the extension's rules page: the student's words in, a list of 
 ```
 
 - Operations: `budget` {kind, minutes}, `unwatch` {kind}, `site` {domain, kind}, `unsite` {domain}, `addVideo`, `videoBudget` {id, minutes}, `dropVideo` {id}, `dayStart` {hour}, `examStart` {until, goal}, `examEnd` {}, `siteLimit` {domain, minutes}, `dropSiteLimit` {domain}. A video rule's `minutes` is 0 (closed), a number (its own daily minutes) or `null` (free).
+- `loosenLocked: true` (optional) says an earlier no holds every loosening until the morning. The relay then drops every change that would give more time and replies "I said no to a loosening today, so that waits: ask again after 4:00." (QA round 3, N1).
 - `examStart` starts exam mode, or extends it while it is on. `examEnd` asks to end it early; the extension turns it into a loosening request through `/loosen`.
 - `siteLimit` {domain, minutes} gives one site its own limit, whatever its kind: daily minutes (0 closes it all day), or `null` for "closed only in exam mode". `dropSiteLimit` {domain} removes it. The rules state may carry `siteLimits: { "lequipe.fr": 15 }`. These names were agreed with the extension on 2026-10-17.
 - The chat chooses a stated default rather than asking how to model a rule: "i want to put a limit on the site lequipe" gets `siteLimit` lequipe.fr 15 and the reply "lequipe.fr: 15 minutes a day." It asks only when a request cannot be carried out (an unknown site, exam mode with no end time).
@@ -111,7 +112,7 @@ The agent that holds the key to loosening: a request to loosen a rule or end exa
 ```
 
 - `kind` is `rules` or `exam`. `decision` is `allow`, `deny` or `ask`; `ask` comes at most once (with `asked` set, an ask counts as no).
-- `when` is `"now"` or `"morning"` with `allow`, `null` otherwise. Every yes applies the next morning, except ending exam mode once the exam can be over: `"now"` is allowed only when `exam.examAt` is known and the relay's own clock (never the device's) is past it (`canEndNow` in [src/loosen.ts](src/loosen.ts)); the extension applies the same rule. Before that, a model's "now" is turned into "morning" and the reply says the exam's time hasn't come yet, and the prompt treats "it's over" as untrue. This closes QA round 2's C3, where "exam is over" ended exam mode two days before the midterm. An extension that gets no `when` (an older relay) should treat a yes as `"morning"`.
+- `when` is `"now"` or `"morning"` with `allow`, `null` otherwise. Every yes applies the next morning, except ending exam mode once the exam can be over: `"now"` is allowed only when `exam.examAt` is known and the relay's own clock (never the device's) is past it (`canEndNow` in [src/loosen.ts](src/loosen.ts)); the extension applies the same rule. A student who says the exam is over gets a yes, never a flat no: "now" when the exam's time is known and past, "tomorrow morning" otherwise (QA round 3, N2). An extension that gets no `when` (an older relay) should treat a yes as `"morning"`.
 
 ### `POST /judge`
 
