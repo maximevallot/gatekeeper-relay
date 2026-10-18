@@ -55,3 +55,28 @@ describe("a loosening is never described as done, and the watch week never promi
     expect(out.reply).toBe("Video: 10 → 20 minutes a day. That gives you more time, so Gatekeeper will ask you why before it changes. The stricter part applies now.");
   });
 });
+
+describe("exam mode: a no on the rules doesn't block it, and a stuck student gets the address", () => {
+  const EXAM = { until: "2026-10-23T12:00:00-04:00", goal: "Midterm" };
+
+  it("keeps 'end exam mode' on the card when a no holds the rules", async () => {
+    mockAnthropic({ answer: { reply: "OK.", question: null, diff: [{ op: "examEnd" }] } });
+    const out = (await (await post("/rules", chat("need to end exam mode", { exam: EXAM, loosenLocked: true }))).json()) as any;
+    expect(out.diff).toEqual([{ op: "examEnd" }]);
+    expect(out.reply).not.toContain("I said no");
+  });
+
+  it("drops the looser rule but keeps exam mode's end, and says which is which", async () => {
+    mockAnthropic({ answer: { reply: "OK.", question: null, diff: [{ op: "budget", kind: "video", minutes: 30 }, { op: "examEnd" }] } });
+    const out = (await (await post("/rules", chat("more video and end exam mode", { exam: EXAM, loosenLocked: true }))).json()) as any;
+    expect(out.diff).toEqual([{ op: "examEnd" }]);
+    expect(out.reply).toBe("I said no to a loosening of your rules today, so the rest waits: ask again after 4:00. Ending exam mode early is separate: Gatekeeper will ask you why.");
+  });
+
+  it("tells the model a stuck student needs canvas.mit.edu, and that exam mode isn't locked by a no", async () => {
+    const calls = mockAnthropic({ answer: { reply: "MIT's Canvas is canvas.mit.edu.", question: null, diff: [] } });
+    await post("/rules", chat("need to end exam mode i couldnt access mit canvas because i didnt know the website name", { exam: EXAM, loosenLocked: true }));
+    expect(calls[0]!.body.messages[0].content).toContain("Ending exam mode early is not locked by it.");
+    expect(rulesPrompt).toContain("MIT's Canvas is canvas.mit.edu");
+  });
+});

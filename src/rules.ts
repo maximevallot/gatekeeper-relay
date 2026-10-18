@@ -110,7 +110,7 @@ export function rulesUserMessage(input: RulesInput): string {
     `- video rules:${videos.length ? "\n" + videos.join("\n") : " none"}`,
     `- the day starts at ${r.dayStart}:00`,
     `- exam mode: ${exam}`,
-    ...(input.loosenLocked ? [`- loosening: locked until ${r.dayStart}:00 tomorrow by an earlier no; only stricter changes can apply`] : []),
+    ...(input.loosenLocked ? [`- loosening the rules: locked until ${r.dayStart}:00 tomorrow by an earlier no; only stricter changes can apply. Ending exam mode early is not locked by it.`] : []),
     "",
     `conversation so far:${history.length ? "\n" + history.join("\n") : " none"}`,
     "",
@@ -235,15 +235,19 @@ export function enforceRules(data: unknown, input: RulesInput): RulesResult {
   if (input.loosenLocked) {
     // After a no, nothing loosens until the morning: those changes leave the card, and the reply says so
     // plainly instead of promising them (QA round 3, N1).
-    const tight = diff.filter((op) => !loosens(op, input.rules));
-    if (tight.length < diff.length) {
+    // A no on the rules holds the rules only: ending exam mode early has its own answer (Maxime's test:
+    // a no on Video minutes blocked "end exam mode, I couldn't reach Canvas").
+    const kept = diff.filter((op) => op.op === "examEnd" || !loosens(op, input.rules));
+    if (kept.length < diff.length) {
       const after = `ask again after ${input.rules.dayStart}:00`;
+      const exam = kept.some((op) => op.op === "examEnd") ? " Ending exam mode early is separate: Gatekeeper will ask you why." : "";
+      const stricter = kept.some((op) => op.op !== "examEnd") ? "The stricter part applies now. " : "";
       return {
-        reply: tight.length
-          ? `The stricter part applies now. I said no to a loosening today, so the rest waits: ${after}.`
+        reply: stricter || exam
+          ? `${stricter}I said no to a loosening of your rules today, so the rest waits: ${after}.${exam}`
           : `I said no to a loosening today, so that waits: ${after}.`,
         question: null,
-        diff: tight,
+        diff: kept,
       };
     }
   }
