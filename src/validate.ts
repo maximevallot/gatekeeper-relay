@@ -109,6 +109,8 @@ export interface GateInput {
   message: string;
   now: string | null;
   exam: Exam | null;
+  /** The gate's one question, when the message answers it: then the gate decides, it never asks again. */
+  asked: string;
 }
 
 export function gateInput(body: Obj): GateInput {
@@ -136,6 +138,7 @@ export function gateInput(body: Obj): GateInput {
     message: str(body, "message", 500, true),
     now: now(body),
     exam: exam(body),
+    asked: plain(body.asked, "asked", 300, false),
   };
 }
 
@@ -171,6 +174,8 @@ export interface JudgeInput {
   title: string;
   channel: string;
   rules: VideoRuleText[];
+  /** Exam mode, if on: the video is also judged against the exam's subject (forExam). */
+  exam: Exam | null;
 }
 
 function plain(v: unknown, key: string, max: number, required: boolean): string {
@@ -198,14 +203,17 @@ function videoRuleTexts(raw: unknown, max: number): VideoRuleText[] {
 export function judgeInput(body: Obj): JudgeInput {
   const site = domain(body.site, "site");
   if (!(VIDEO_SITES as readonly string[]).includes(site)) throw new BadRequest("invalid_site");
-  const rules = videoRuleTexts(body.rules, 20);
-  if (!rules.length) throw new BadRequest("invalid_rules");
+  const rules = videoRuleTexts(body.rules ?? [], 20);
+  const ex = exam(body);
+  // In exam mode a video is judged against the exam even with no video rules.
+  if (!rules.length && !ex) throw new BadRequest("invalid_rules");
   return {
     installId: installId(body),
     site,
     title: plain(body.title, "title", 200, true),
     channel: plain(body.channel, "channel", 100, false),
     rules,
+    exam: ex,
   };
 }
 

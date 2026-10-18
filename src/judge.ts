@@ -7,13 +7,15 @@ import type { JudgeInput } from "./validate";
 export interface JudgeResult {
   rule: string | null;
   judged: boolean;
+  /** In exam mode: whether the video is about the exam's subject. null outside exam mode, or not judged. */
+  forExam: boolean | null;
 }
 
 // The ids change per request, so the schema stays fixed and the server checks the id.
 const SCHEMA = {
   type: "object",
-  properties: { rule: { type: "string" } },
-  required: ["rule"],
+  properties: { rule: { type: "string" }, forExam: { anyOf: [{ type: "boolean" }, { type: "null" }] } },
+  required: ["rule", "forExam"],
   additionalProperties: false,
 };
 
@@ -25,7 +27,8 @@ export function judgeUserMessage(input: JudgeInput): string {
     .join("\n");
   return [
     `site: ${input.site}`,
-    `rules:\n${rules}`,
+    `exam mode: ${input.exam ? `on, for "${strip(input.exam.goal) || "an exam"}"` : "off"}`,
+    `rules:${rules ? "\n" + rules : " none"}`,
     "",
     `<title>${strip(input.title)}</title>`,
     `<channel>${strip(input.channel) || "(unknown)"}</channel>`,
@@ -34,13 +37,14 @@ export function judgeUserMessage(input: JudgeInput): string {
 
 /** The answer must name one of the rules sent, or none. Anything else is not a judgment. */
 export function enforceJudgment(data: unknown, input: JudgeInput): JudgeResult {
-  const rule = typeof data === "object" && data !== null ? (data as Record<string, unknown>).rule : undefined;
-  if (rule === "none") return { rule: null, judged: true };
-  if (typeof rule === "string" && input.rules.some((r) => r.id === rule)) return { rule, judged: true };
-  return { rule: null, judged: false };
+  const d = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
+  const forExam = input.exam && typeof d.forExam === "boolean" ? d.forExam : null;
+  if (d.rule === "none") return { rule: null, judged: true, forExam };
+  if (typeof d.rule === "string" && input.rules.some((r) => r.id === d.rule)) return { rule: d.rule, judged: true, forExam };
+  return { rule: null, judged: false, forExam };
 }
 
 export async function judge(env: Env, input: JudgeInput): Promise<{ result: JudgeResult; tokens: number }> {
   const out = await askClaude(env, { system: judgePrompt, user: judgeUserMessage(input), schema: SCHEMA, maxTokens: 512 });
-  return { result: out.ok ? enforceJudgment(out.data, input) : { rule: null, judged: false }, tokens: out.tokens };
+  return { result: out.ok ? enforceJudgment(out.data, input) : { rule: null, judged: false, forExam: null }, tokens: out.tokens };
 }
