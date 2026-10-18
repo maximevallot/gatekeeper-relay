@@ -237,6 +237,8 @@ export interface RulesInput {
   rules: RulesState;
   now: string | null;
   exam: Exam | null;
+  /** An earlier no holds every loosening until the morning (QA round 3, N1). */
+  loosenLocked: boolean;
 }
 
 function ruleMinutes(v: unknown): number {
@@ -293,6 +295,7 @@ export function rulesInput(body: Obj): RulesInput {
     rules: rulesState(body.rules),
     now: now(body),
     exam: exam(body),
+    loosenLocked: body.loosenLocked === true,
   };
 }
 

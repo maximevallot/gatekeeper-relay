@@ -109,6 +109,7 @@ export function rulesUserMessage(input: RulesInput): string {
     `- video rules:${videos.length ? "\n" + videos.join("\n") : " none"}`,
     `- the day starts at ${r.dayStart}:00`,
     `- exam mode: ${exam}`,
+    ...(input.loosenLocked ? [`- loosening: locked until ${r.dayStart}:00 tomorrow by an earlier no; only stricter changes can apply`] : []),
     "",
     `conversation so far:${history.length ? "\n" + history.join("\n") : " none"}`,
     "",
@@ -224,8 +225,52 @@ export function enforceRules(data: unknown, input: RulesInput): RulesResult {
     .filter((op): op is Op => op !== null)
     // One exam change per card: starting and ending in the same breath makes no sense.
     .filter((op, i, all) => !op.op.startsWith("exam") || all.findIndex((o) => o.op.startsWith("exam")) === i);
+  if (input.loosenLocked) {
+    // After a no, nothing loosens until the morning: those changes leave the card, and the reply says so
+    // plainly instead of promising them (QA round 3, N1).
+    const tight = diff.filter((op) => !loosens(op, input.rules));
+    if (tight.length < diff.length) {
+      const after = `ask again after ${input.rules.dayStart}:00`;
+      return {
+        reply: tight.length
+          ? `The stricter part applies now. I said no to a loosening today, so the rest waits: ${after}.`
+          : `I said no to a loosening today, so that waits: ${after}.`,
+        question: null,
+        diff: tight,
+      };
+    }
+  }
   if (!reply && !diff.length) return FALLBACK;
   return { reply: reply || "Here is the change.", question: null, diff };
+}
+
+/** Whether a change could give more time than the rules as sent. Unsure cases count as loosening. */
+export function loosens(op: Op, r: RulesInput["rules"]): boolean {
+  const kinds = r.kinds as Record<string, number | undefined>;
+  switch (op.op) {
+    case "budget": return kinds[op.kind] !== undefined && op.minutes > kinds[op.kind]!;
+    case "unwatch": return kinds[op.kind] !== undefined;
+    case "site": return false; // a site put in a kind: the extension's tighten() judges it with every site under it
+    case "unsite": return true;
+    case "siteLimit": {
+      if (!(op.domain in r.siteLimits)) return op.minutes === null;
+      const cur = r.siteLimits[op.domain];
+      if (op.minutes === null) return cur !== null;
+      return cur === null ? false : op.minutes > cur!;
+    }
+    case "dropSiteLimit": return true;
+    case "addVideo": return op.minutes === null;
+    case "videoBudget": {
+      const v = r.videos.find((x) => x.id === op.id);
+      if (!v) return true;
+      if (op.minutes === null) return v.minutes !== null;
+      return v.minutes === null ? false : op.minutes > v.minutes;
+    }
+    case "dropVideo": return (r.videos.find((x) => x.id === op.id)?.minutes ?? null) !== null;
+    case "dayStart": return op.hour !== r.dayStart;
+    case "examEnd": return true;
+    case "examStart": return false;
+  }
 }
 
 export async function rules(env: Env, input: RulesInput): Promise<{ result: RulesResult; tokens: number }> {
