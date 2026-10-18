@@ -47,4 +47,35 @@
     { "tag": "v1", "new_sqlite_classes": ["Quota"] },
     { "tag": "v2", "new_sqlite_classes": ["Account", "Pairing"] }
   ]
+  ,
+  // 0.3.0 staging: Maxime runs 0.3.0 against it on Brave, Safari and the Mac. Its own Worker, KV and Durable
+  // Objects; nothing shared with the live relay. Deploy only with `npx wrangler deploy --env staging`.
+  "env": {
+    "staging": {
+      "name": "gatekeeper-relay-staging",
+      // No start page or download on staging: an empty folder overrides the top-level "assets", which environments inherit.
+      "assets": { "directory": "./staging-assets" },
+      "vars": {
+        "MODEL": "claude-haiku-5-5",
+        "MAX_CALLS_PER_INSTALL": "60",
+        "MAX_TOKENS_PER_INSTALL": "40000",
+        "MAX_CALLS_PER_IP": "300",
+        "GLOBAL_DAILY_TOKENS": "1000000",
+        "MAX_PASS_MINUTES": "10",
+        "MAX_EXAM_PASS_MINUTES": "5",
+        "MAX_RULES_PER_INSTALL": "40",
+        "MAX_LOOSEN_PER_INSTALL": "10",
+        "MAX_JUDGE_PER_INSTALL": "150",
+        "ALLOWED_ORIGINS": ""
+      },
+      "kv_namespaces": [{ "binding": "SORT_CACHE", "id": "ac2b0b794fea454984be119e42883e7c" }],
+      "durable_objects": {
+        "bindings": [
+          { "name": "QUOTA", "class_name": "Quota" },
+          { "name": "ACCOUNT", "class_name": "Account" },
+          { "name": "PAIRING", "class_name": "Pairing" }
+        ]
+      }
+    }
+  }
 }

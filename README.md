@@ -30,6 +30,13 @@ One Gatekeeper per person, as Maxime approved on 2026-10-18 ([the design](../bra
 - `npm run smoke:account` runs it end to end under `wrangler dev` with Brave, Safari and the Mac simulated (22 checks).
 - The 0.3.0 privacy policy is drafted in `pages/privacy-0.3.0-draft.html`. `/privacy` still serves 0.1.1, unchanged.
 
+### Staging (0.3.0)
+
+Maxime runs 0.3.0 on Brave, Safari and the Mac against its own Worker, `gatekeeper-relay-staging` at https://gatekeeper-relay-staging.mvallot22.workers.dev. It has its own KV namespace and Durable Objects, and no start page. Nothing is shared with the live relay.
+
+- Deploy it only with `npm run deploy:staging` (`npx wrangler deploy --env staging`). On this branch `npm run deploy` refuses: a plain `wrangler deploy` here would replace the live relay with 0.3.0.
+- The Anthropic key is Maxime's to set, once, from this folder: `npx wrangler secret put ANTHROPIC_API_KEY --env staging`.
+
 ## Endpoints
 
 ### `POST /gate`

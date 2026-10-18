@@ -9,9 +9,10 @@
     "typecheck": "tsc --noEmit",
     "smoke": "node scripts/smoke.mjs",
     "check": "npm run typecheck && npm test && npm run smoke && npm run smoke:account",
-    "deploy": "wrangler deploy",
+    "deploy": "echo 'On the account branch, deploy only to staging: npm run deploy:staging. A plain wrangler deploy here would replace the live relay with 0.3.0.' && exit 1",
     "smoke:account": "node scripts/account-smoke.mjs",
-    "dev:account": "node scripts/dev-account.mjs"
+    "dev:account": "node scripts/dev-account.mjs",
+    "deploy:staging": "wrangler deploy --env staging"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0"
