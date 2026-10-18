@@ -43,8 +43,8 @@ describe("QA round 3, #4 (chat N1): after one no, the chat says what happens", (
     expect(out.reply).toBe("The stricter part applies now. I said no to a loosening of your rules today, so the rest waits: ask again after 4:00.");
   });
 
-  it("without the flag, the change stays on the card, worded as a question for Gatekeeper, not as done", async () => {
-    const asked = { ...MODEL, reply: "Games: 15 → 30 minutes a day. That gives you more time, so Gatekeeper will ask you why before it changes." };
+  it("without the flag, the change stays on the card, described, never as done", async () => {
+    const asked = { ...MODEL, reply: "Games: 15 → 30 minutes a day." };
     mockAnthropic({ answer: MODEL });
     expect(await (await post("/rules", body())).json()).toEqual(asked);
     mockAnthropic({ answer: MODEL });

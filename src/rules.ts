@@ -9,6 +9,8 @@ export type Op =
   | { op: "unwatch"; kind: Limitable }
   | { op: "site"; domain: string; kind: Limitable }
   | { op: "unsite"; domain: string }
+  | { op: "study"; domain: string }
+  | { op: "unstudy"; domain: string }
   | { op: "siteLimit"; domain: string; minutes: number | null }
   | { op: "dropSiteLimit"; domain: string }
   | {
@@ -54,6 +56,8 @@ const SCHEMA = {
           obj("unwatch", { kind }),
           obj("site", { domain: { type: "string" }, kind }),
           obj("unsite", { domain: { type: "string" } }),
+          obj("study", { domain: { type: "string" } }),
+          obj("unstudy", { domain: { type: "string" } }),
           obj("siteLimit", { domain: { type: "string" }, minutes: nullableInt }),
           obj("dropSiteLimit", { domain: { type: "string" } }),
           obj("addVideo", {
@@ -106,6 +110,7 @@ export function rulesUserMessage(input: RulesInput): string {
     "rules now:",
     `- watched kinds: ${kinds.length ? kinds.join(", ") : "none"} (kinds not listed have no limit)`,
     `- the student's own sites: ${sites.length ? sites.join(", ") : "none"}`,
+    `- sites the student marked as study sites: ${r.study.length ? r.study.join(", ") : "none"}`,
     `- sites with their own limit: ${siteLimits.length ? siteLimits.join(", ") : "none"}`,
     `- video rules:${videos.length ? "\n" + videos.join("\n") : " none"}`,
     `- the day starts at ${r.dayStart}:00`,
@@ -161,6 +166,11 @@ function cleanOp(raw: unknown, videoIds: Set<string>, input: RulesInput): Op | n
     case "site": {
       const d = cleanDomain(o.domain);
       return d && isLimitable(o.kind) ? { op: "site", domain: d, kind: o.kind } : null;
+    }
+    case "study":
+    case "unstudy": {
+      const d = cleanDomain(o.domain);
+      return d ? { op: o.op, domain: d } : null;
     }
     case "unsite": {
       const d = cleanDomain(o.domain);
@@ -237,7 +247,7 @@ export function enforceRules(data: unknown, input: RulesInput): RulesResult {
     // plainly instead of promising them (QA round 3, N1).
     // A no on the rules holds the rules only: ending exam mode early has its own answer (Maxime's test:
     // a no on Video minutes blocked "end exam mode, I couldn't reach Canvas").
-    const kept = diff.filter((op) => op.op === "examEnd" || !loosens(op, input.rules));
+    const kept = diff.filter((op) => op.op === "examEnd" || !loosens(op, input.rules, input.exam));
     if (kept.length < diff.length) {
       const after = `ask again after ${input.rules.dayStart}:00`;
       const exam = kept.some((op) => op.op === "examEnd") ? " Ending exam mode early is separate: Gatekeeper will ask you why." : "";
@@ -255,58 +265,62 @@ export function enforceRules(data: unknown, input: RulesInput): RulesResult {
   return { reply: honest(reply || "Here is the change.", diff, input), question: null, diff };
 }
 
-const WATCH_WEEK = "This first week Gatekeeper only watches and closes nothing, so your limits start when the week ends.";
 const LABELS: Record<string, string> = { social: "Social media", video: "Video", games: "Games", news: "News", shopping: "Shopping" };
 const amount = (m: number | null | undefined, free = "no limit") =>
   m === undefined ? "no limit" : m === null ? free : m === 0 ? "closed all day" : `${m} minutes a day`;
+const short = (text: string) => text.replace(" minutes a day", "");
 
-/** One loosening in plain words, from the rules as sent: "Video: 10 → 20 minutes a day". */
-export function describeLoosening(op: Op, r: RulesInput["rules"]): string {
+/** One change in plain words, from the rules as sent: "Video: 10 → 20 minutes a day". */
+export function describeChange(op: Op, r: RulesInput["rules"]): string {
   const kinds = r.kinds as Record<string, number | undefined>;
   const video = (id: string) => r.videos.find((v) => v.id === id);
+  const from = (cur: string) => (cur === "no limit" ? "" : `${short(cur)} → `);
   switch (op.op) {
-    case "budget": return `${LABELS[op.kind]}: ${amount(kinds[op.kind]).replace(" minutes a day", "")} → ${amount(op.minutes)}`;
+    case "budget": return `${LABELS[op.kind]}: ${from(amount(kinds[op.kind]))}${amount(op.minutes)}`;
     case "unwatch": return `${LABELS[op.kind]}: no limit`;
+    case "site": return `${op.domain} counts as ${LABELS[op.kind]}`;
     case "unsite": return `${op.domain}: back to Gatekeeper's own list`;
-    case "siteLimit": return `${op.domain}: ${amount(r.siteLimits[op.domain], "closed only in exam mode").replace(" minutes a day", "")} → ${amount(op.minutes, "closed only in exam mode")}`;
+    case "study": return `${op.domain} counts as a study site`;
+    case "unstudy": return `${op.domain} is no longer a study site`;
+    case "siteLimit": {
+      const cur = op.domain in r.siteLimits ? amount(r.siteLimits[op.domain], "closed only in exam mode") : "no limit";
+      return `${op.domain}: ${from(cur)}${amount(op.minutes, "closed only in exam mode")}`;
+    }
     case "dropSiteLimit": return `${op.domain}: no limit of its own`;
-    case "addVideo": return `Videos about ${op.about}: no limit`;
-    case "videoBudget": { const v = video(op.id); return `Videos about ${v ? v.about : "that"}: ${amount(v?.minutes).replace(" minutes a day", "")} → ${amount(op.minutes)}`; }
+    case "addVideo": return `Videos about ${op.about}: ${amount(op.minutes)}`;
+    case "videoBudget": { const v = video(op.id); return `Videos about ${v ? v.about : "that"}: ${from(amount(v?.minutes))}${amount(op.minutes)}`; }
     case "dropVideo": { const v = video(op.id); return `The rule on videos about ${v ? v.about : "that"} goes`; }
     case "dayStart": return `The day starts at ${op.hour}:00`;
-    case "examEnd": return "Ending exam mode early";
-    default: return "That change";
+    case "examStart": return `Exam mode until ${op.until.slice(0, 16).replace("T", " ")}`;
+    case "examEnd": return "End exam mode early";
   }
 }
 
+const TIMING = /\b(now|at once|immediately|right away|tomorrow|next morning|in the morning|from the morning|4:00)\b/i;
+
 /**
- * The reply never says a loosening is done before Gatekeeper said yes (Maxime's test: "actually no 20min"
- * got "Video is now limited to 20 minutes"), and never promises "now" in the watch week. A card that loosens
- * gets its reply from the changes themselves; in the watch week, timing sentences go and the week is named.
+ * The reply never says a loosening is done (Maxime's test: "actually no 20min" got "Video is now limited to
+ * 20 minutes") and promises nothing about timing: the card says when each part applies, with the watch week,
+ * Claude help and any no that holds a rule until the morning. A card that gives more time is described from its
+ * changes; otherwise the model's words stay, without sentences about timing.
  */
 export function honest(reply: string, diff: Op[], input: RulesInput): string {
-  const loose = diff.filter((op) => loosens(op, input.rules));
-  const tight = diff.length > loose.length;
-  if (loose.length) {
-    const what = loose.map((op) => describeLoosening(op, input.rules)).join("; ");
-    const tail = input.watching ? ` ${WATCH_WEEK}` : tight ? " The stricter part applies now." : "";
-    return `${what}. That gives you more time, so Gatekeeper will ask you why before it changes.${tail}`;
-  }
-  if (input.watching && diff.length) {
-    const kept = reply.split(/(?<=[.!?])\s+/).filter((s) => !/\b(now|at once|immediately|right away)\b/i.test(s));
-    return [...kept, WATCH_WEEK].join(" ").trim();
-  }
-  return reply;
+  if (!diff.length) return reply;
+  if (diff.some((op) => loosens(op, input.rules, input.exam))) return diff.map((op) => describeChange(op, input.rules)).join(". ") + ".";
+  const kept = reply.split(/(?<=[.!?])\s+/).filter((s) => !TIMING.test(s));
+  return kept.join(" ").trim() || diff.map((op) => describeChange(op, input.rules)).join(". ") + ".";
 }
 
 /** Whether a change could give more time than the rules as sent. Unsure cases count as loosening. */
-export function loosens(op: Op, r: RulesInput["rules"]): boolean {
+export function loosens(op: Op, r: RulesInput["rules"], exam: RulesInput["exam"] = null): boolean {
   const kinds = r.kinds as Record<string, number | undefined>;
   switch (op.op) {
     case "budget": return kinds[op.kind] !== undefined && op.minutes > kinds[op.kind]!;
     case "unwatch": return kinds[op.kind] !== undefined;
     case "site": return false; // a site put in a kind: the extension's tighten() judges it with every site under it
     case "unsite": return true;
+    case "study": return !!exam; // opens a site in exam mode; outside it, it changes nothing that day
+    case "unstudy": return false;
     case "siteLimit": {
       if (!(op.domain in r.siteLimits)) return op.minutes === null;
       const cur = r.siteLimits[op.domain];

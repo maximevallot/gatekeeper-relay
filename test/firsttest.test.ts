@@ -35,24 +35,24 @@ describe("replies speak as Gatekeeper, in plain words", () => {
   });
 });
 
-describe("a loosening is never described as done, and the watch week never promises now", () => {
-  it("'actually no 20min' (from 10) says Gatekeeper will ask why, not that Video is now 20", async () => {
+describe("a loosening is never described as done, and replies promise no timing", () => {
+  it("'actually no 20min' (from 10) names the change, never that Video is now 20", async () => {
     mockAnthropic({ answer: { reply: "Video is now limited to 20 minutes a day, replacing the 10-minute limit.", question: null, diff: [{ op: "budget", kind: "video", minutes: 20 }] } });
     const out = (await (await post("/rules", chat("actually no 20min"))).json()) as any;
     expect(out.diff).toEqual([{ op: "budget", kind: "video", minutes: 20 }]);
-    expect(out.reply).toBe("Video: 10 → 20 minutes a day. That gives you more time, so Gatekeeper will ask you why before it changes.");
+    expect(out.reply).toBe("Video: 10 → 20 minutes a day.");
   });
 
   it("'limit youtube and videos to 15min' in the watch week doesn't say it applies now", async () => {
     mockAnthropic({ answer: { reply: "Video: 15 minutes a day. It applies now.", question: null, diff: [{ op: "budget", kind: "video", minutes: 15 }] } });
     const out = (await (await post("/rules", chat("limit youtube and videos to 15min", { rules: { ...RULES, kinds: {} }, watching: true }))).json()) as any;
-    expect(out.reply).toBe("Video: 15 minutes a day. This first week Gatekeeper only watches and closes nothing, so your limits start when the week ends.");
+    expect(out.reply).toBe("Video: 15 minutes a day."); // the card says when it applies
   });
 
-  it("a mixed card says which part waits for Gatekeeper", async () => {
+  it("a mixed card names every change, and no timing", async () => {
     mockAnthropic({ answer: { reply: "Done.", question: null, diff: [{ op: "budget", kind: "video", minutes: 20 }, { op: "siteLimit", domain: "reddit.com", minutes: 10 }] } });
     const out = (await (await post("/rules", chat("20 min of video and limit reddit to 10"))).json()) as any;
-    expect(out.reply).toBe("Video: 10 → 20 minutes a day. That gives you more time, so Gatekeeper will ask you why before it changes. The stricter part applies now.");
+    expect(out.reply).toBe("Video: 10 → 20 minutes a day. reddit.com: 10 minutes a day.");
   });
 });
 
@@ -115,4 +115,33 @@ describe("internal words never reach the student", () => {
 
 it("capitalizes a category that starts a sentence after a swap", () => {
   expect(voice("The video kind is not watched. OK.")).toBe("Video is not limited. OK.");
+});
+
+describe("study sites (extension fd8dda2): the chat can mark one, and exam mode is never a dead end", () => {
+  const EXAM = { until: "2026-10-23T12:00:00-04:00", goal: "Midterm" };
+  it("passes study and unstudy, normalized, and shows the student's study sites to the model", async () => {
+    const calls = mockAnthropic({ answer: { reply: "wolframalpha.com counts as a study site now.", question: null, diff: [{ op: "study", domain: "https://www.WolframAlpha.com/input" }, { op: "unstudy", domain: "overleaf.com" }] } });
+    const out = (await (await post("/rules", chat("I need wolframalpha for my problem set", { exam: EXAM, rules: { ...RULES, study: ["overleaf.com"] } }))).json()) as any;
+    expect(out.diff).toEqual([{ op: "study", domain: "wolframalpha.com" }, { op: "unstudy", domain: "overleaf.com" }]);
+    // In exam mode, a study site opens a site, so the reply only names the change: the card says when.
+    expect(out.reply).toBe("wolframalpha.com counts as a study site. overleaf.com is no longer a study site.");
+    expect(calls[0]!.body.messages[0].content).toContain("- sites the student marked as study sites: overleaf.com");
+    expect(calls[0]!.body.output_config.format.schema.properties.diff.items.anyOf.map((i: any) => i.properties.op.const)).toEqual(expect.arrayContaining(["study", "unstudy"]));
+  });
+
+  it("outside exam mode, keeps the model's words without timing", async () => {
+    mockAnthropic({ answer: { reply: "wolframalpha.com counts as a study site. It applies now.", question: null, diff: [{ op: "study", domain: "wolframalpha.com" }] } });
+    expect(((await (await post("/rules", chat("mark wolframalpha as study"))).json()) as any).reply).toBe("wolframalpha.com counts as a study site.");
+  });
+
+  it("rejects a malformed study list", async () => {
+    mockAnthropic();
+    expect((await post("/rules", chat("x", { rules: { ...RULES, study: "canvas" } }))).status).toBe(400);
+    expect((await post("/rules", chat("x", { rules: { ...RULES, study: ["not a site"] } }))).status).toBe(400);
+  });
+
+  it("tells the model to use study or the gate in exam mode, and to say nothing about timing", () => {
+    expect(rulesPrompt).toContain("In exam mode, never leave a student at a dead end.");
+    expect(rulesPrompt).toContain('never say when a change starts: not "now", not "tomorrow", not "the next morning"');
+  });
 });

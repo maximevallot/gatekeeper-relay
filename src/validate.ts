@@ -220,6 +220,8 @@ export interface RulesState {
   sites: Record<string, Kind>;
   /** A site's own daily minutes, independent of its kind. 0: closed. null: no daily limit, closed only in exam mode. */
   siteLimits: Record<string, number | null>;
+  /** Sites the student marked as study sites: they stay open in exam mode. */
+  study: string[];
   videos: VideoRuleState[];
   dayStart: number;
 }
@@ -277,7 +279,10 @@ function rulesState(raw: unknown): RulesState {
   });
   const ds = raw.dayStart ?? 4;
   if (typeof ds !== "number" || !Number.isInteger(ds) || ds < 0 || ds > 23) throw new BadRequest("invalid_rules");
-  return { kinds, sites, siteLimits, videos, dayStart: ds };
+  const rawStudy = raw.study ?? [];
+  if (!Array.isArray(rawStudy) || rawStudy.length > 100) throw new BadRequest("invalid_rules");
+  const study = [...new Set(rawStudy.map((d) => domain(d, "rules")))];
+  return { kinds, sites, siteLimits, study, videos, dayStart: ds };
 }
 
 export function rulesInput(body: Obj): RulesInput {
