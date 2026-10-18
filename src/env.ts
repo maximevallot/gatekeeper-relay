@@ -1,3 +1,4 @@
+import type { Account, Pairing } from "./account/account";
 import type { Quota } from "./quota";
 
 export interface Env {
@@ -22,6 +23,10 @@ export interface Env {
   ALLOWED_ORIGINS: string;
   SORT_CACHE: KVNamespace;
   QUOTA: DurableObjectNamespace<Quota>;
+  /** One per person: the account (0.3.0). */
+  ACCOUNT: DurableObjectNamespace<Account>;
+  /** One per 6-digit code for Add a device. */
+  PAIRING: DurableObjectNamespace<Pairing>;
 }
 
 export function intVar(value: string | undefined, fallback: number): number {

@@ -34,7 +34,15 @@
     { "binding": "SORT_CACHE", "id": "9d20de8cb9374e108d57e55f9bb805fd" }
   ],
   "durable_objects": {
-    "bindings": [{ "name": "QUOTA", "class_name": "Quota" }]
+    "bindings": [
+      { "name": "QUOTA", "class_name": "Quota" },
+      // 0.3.0: one account per person, and one object per 6-digit pairing code.
+      { "name": "ACCOUNT", "class_name": "Account" },
+      { "name": "PAIRING", "class_name": "Pairing" }
+    ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Quota"] }]
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Quota"] },
+    { "tag": "v2", "new_sqlite_classes": ["Account", "Pairing"] }
+  ]
 }

@@ -1,3 +1,4 @@
+import { handleAccount, MAX_ACCOUNT_BODY } from "./account/routes";
 import { UpstreamError } from "./claude";
 import { type Env, intVar } from "./env";
 import { gate } from "./gate";
@@ -10,6 +11,7 @@ import { BadRequest, gateInput, isObject, judgeInput, loosenInput, rulesInput, s
 import privacyPage from "../pages/privacy.html";
 
 export { Quota } from "./quota";
+export { Account, Pairing } from "./account/account";
 
 const MAX_BODY_BYTES = 8 * 1024;
 const MAX_RULES_BODY_BYTES = 24 * 1024; // /rules carries the student's rules and a short conversation
@@ -26,7 +28,7 @@ function corsHeaders(origin: string | null): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Max-Age": "86400",
     Vary: "Origin",
   };
@@ -81,6 +83,19 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext, origin:
     return new Response(request.method === "HEAD" ? null : privacyPage, {
       headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=3600" },
     });
+  }
+  // The account (0.3.0): one Gatekeeper per person; see docs/account-contract.md.
+  if (pathname.startsWith("/account/")) {
+    if (request.method !== "POST") return json({ v: 1, error: "method_not_allowed" }, 405, origin);
+    let body: Record<string, unknown>;
+    try {
+      body = await readBody(request, MAX_ACCOUNT_BODY);
+    } catch (err) {
+      if (err instanceof BadRequest) return json({ v: 1, error: err.message }, 400, origin);
+      throw err;
+    }
+    const r = await handleAccount(pathname, body, request, env);
+    return json(r.body, r.status, origin);
   }
   if (!PATHS.includes(pathname)) return json({ error: "not_found" }, 404, origin);
   if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405, origin);

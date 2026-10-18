@@ -140,7 +140,7 @@ One per thing the user did. Each has a unique `id`, chosen by the device, and a 
 | `noteGate` | | `noteGate` | `{ ok }` |
 | `sorted` | `domain`, `kind` | `recordSort` | `{ ok }` |
 | `judged` | `key`, `rule`, `by` | `recordJudgment` | `{ ok }` |
-| `calendar` | `events: [{ title, start }]` (the next 48 hours only) | the account keeps the events, never the link | `{ ok }` |
+| `calendar` | `events: [{ title, start }]`, from 2 days ago to 14 days ahead, at most 20 (what the engine keeps) | the account keeps the events, never the link | `{ ok }` |
 
 - `talk` sends a page's `url`. Send only the scheme and host (`https://www.youtube.com/`); the gate needs nothing more. A YouTube video's address is never needed.
 - The Mac app may send only `startExam`, plus the requests every device may send that tighten or say nothing (`noteGate`). Anything that loosens from the Mac is refused with `{ refused: "mac_cannot_loosen" }`, as in the native-messaging contract today.
@@ -171,7 +171,7 @@ Everything else (rules, pending, exam mode, usage, passes, cooldowns, consent, t
 
 ## What the relay stores, per account
 
-The engine state (rules, goal, today's minutes, passes and cooldowns, 30 days of history, the log of 300 entries, the last 50 chat turns, exam mode, consent, the loosening and its reasons, sorted sites and judged videos), the union of today's spans per bucket, the time zone, the device list (name, kind, dates, and a hash of each key), the next 48 hours of calendar exam events, and the rules that lost a merge, for 30 days. Never page addresses, page content or the calendar link.
+The engine state (rules, goal, today's minutes, passes and cooldowns, 30 days of history, the log of 300 entries, the last 50 chat turns, exam mode, consent, the loosening and its reasons, sorted sites and judged videos), the union of today's spans per bucket, the time zone, the device list (name, kind, dates, and a hash of each key), the calendar events the device sent (titles and times, 14 days ahead at most), and the rules that lost a merge, for 30 days. Never page addresses, page content or the calendar link.
 
 ## Not in version 1
 
