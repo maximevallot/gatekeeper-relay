@@ -40,7 +40,7 @@ describe("POST /rules", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual(EXAMPLE_ANSWER);
     const req = calls[0]!.body;
-    expect(req.system).toBe(rulesPrompt);
+    expect(req.system[0].text).toBe(rulesPrompt);
     expect(req.output_config.format.type).toBe("json_schema");
     expect(req.messages[0].content).toBe(
       [
@@ -126,13 +126,14 @@ describe("POST /rules", () => {
     expect(calls).toHaveLength(0);
   });
 
-  it("has a daily cap of its own and counts against the install's shared cap too", async () => {
+  it("has a daily allowance of its own, outside the install's shared caps", async () => {
     mockAnthropic({ answer: EXAMPLE_ANSWER }, { answer: EXAMPLE_ANSWER }, { answer: { decision: "deny", minutes: 0, reply: "No." } });
     const installId = crypto.randomUUID();
-    const env = { MAX_RULES_PER_INSTALL: "1", MAX_CALLS_PER_INSTALL: "2" };
+    const env = { MAX_RULES_PER_INSTALL: "2", MAX_CALLS_PER_INSTALL: "1" };
     expect((await post("/rules", body({ installId }), { env })).status).toBe(200);
-    expect((await post("/rules", body({ installId }), { env })).status).toBe(429);
+    expect((await post("/rules", body({ installId }), { env })).status).toBe(200);
+    expect(await (await post("/rules", body({ installId }), { env })).json()).toMatchObject({ error: "daily_limit", scope: "install" });
+    // The chat used none of the shared cap, so the gate still answers.
     expect((await post("/gate", gateBody({ installId }), { env })).status).toBe(200);
-    expect((await post("/gate", gateBody({ installId }), { env })).status).toBe(429);
   });
 });

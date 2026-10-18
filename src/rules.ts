@@ -1,7 +1,7 @@
 import rulesPrompt from "../prompts/rules.md";
 import { askClaude } from "./claude";
 import type { Env } from "./env";
-import { BadRequest, domain, isLimitable, isLocalTime, LIMITABLE, type Limitable, type RulesInput, VIDEO_SITES } from "./validate";
+import { BadRequest, domain, examText, isLimitable, isLocalTime, LIMITABLE, type Limitable, type RulesInput, VIDEO_SITES } from "./validate";
 
 export type Op =
   | { op: "budget"; kind: Limitable; minutes: number }
@@ -99,9 +99,7 @@ export function rulesUserMessage(input: RulesInput): string {
     (v) => `  - ${v.id} on ${v.site}: about "${v.about}"${v.except ? `, except "${v.except}"` : ""}, ${minutesText(v.minutes)}`,
   );
   const history = input.history.map((h) => `${h.role === "user" ? "student" : "gatekeeper"}: ${h.text.replace(/<\/?message>/gi, "")}`);
-  const exam = input.exam
-    ? `on until ${input.exam.until}${input.exam.goal ? `, for "${input.exam.goal}"` : ""}`
-    : "off";
+  const exam = examText(input.exam);
   return [
     input.now ? `now: ${input.now}` : `today: ${input.today}`,
     "rules now:",

@@ -34,7 +34,8 @@ export async function askClaude(
     response = await client.messages.create({
       model: env.MODEL || "claude-haiku-5-5",
       max_tokens: opts.maxTokens,
-      system: opts.system,
+      // The system prompt is the same on every call, so it is cached; reads cost a tenth.
+      system: [{ type: "text", text: opts.system, cache_control: { type: "ephemeral" } }],
       messages: [{ role: "user", content: opts.user }],
       output_config: { effort: "low", format: { type: "json_schema", schema: opts.schema } },
     });
@@ -48,8 +49,9 @@ export async function askClaude(
   }
 
   const u = response.usage;
+  // Counted as they are billed: a cache read costs a tenth of an input token.
   const tokens =
-    u.input_tokens + u.output_tokens + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0);
+    u.input_tokens + u.output_tokens + (u.cache_creation_input_tokens ?? 0) + Math.ceil((u.cache_read_input_tokens ?? 0) / 10);
 
   if (response.stop_reason === "refusal") return { ok: false, reason: "refusal", tokens };
 

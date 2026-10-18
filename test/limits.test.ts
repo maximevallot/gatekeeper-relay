@@ -56,7 +56,7 @@ describe("daily caps", () => {
     expect((await post("/gate", body, limits)).status).toBe(200);
     const third = await post("/gate", body, limits);
     expect(third.status).toBe(429);
-    expect(await third.json()).toEqual({ error: "daily_limit", scope: "install" });
+    expect(await third.json()).toMatchObject({ error: "daily_limit", scope: "install" });
     // /sort draws from the same allowance.
     expect((await post("/sort", { installId: body.installId, domain: "fresh-domain.com", title: "" }, limits)).status).toBe(429);
     expect(calls).toHaveLength(2);
@@ -72,7 +72,7 @@ describe("daily caps", () => {
     expect((await post("/gate", body, limits)).status).toBe(200); // 25k < 40k, so allowed; now 50k
     const third = await post("/gate", body, limits);
     expect(third.status).toBe(429);
-    expect(await third.json()).toEqual({ error: "daily_limit", scope: "install" });
+    expect(await third.json()).toMatchObject({ error: "daily_limit", scope: "install" });
     expect(calls).toHaveLength(2);
   });
 
@@ -83,7 +83,7 @@ describe("daily caps", () => {
     expect((await post("/gate", gateBody(), limits)).status).toBe(200);
     const third = await post("/gate", gateBody(), limits);
     expect(third.status).toBe(429);
-    expect(await third.json()).toEqual({ error: "daily_limit", scope: "ip" });
+    expect(await third.json()).toMatchObject({ error: "daily_limit", scope: "ip" });
     const other = { ...limits, headers: { "CF-Connecting-IP": "203.0.113.8" } };
     expect((await post("/gate", gateBody(), other)).status).toBe(200);
   });
@@ -95,7 +95,7 @@ describe("daily caps", () => {
     let res = await post("/gate", gateBody(), limits);
     if (res.status === 200) res = await post("/gate", gateBody(), limits);
     expect(res.status).toBe(429);
-    expect(await res.json()).toEqual({ error: "daily_limit", scope: "global" });
+    expect(await res.json()).toMatchObject({ error: "daily_limit", scope: "global" });
   });
 
   it("does not count cached /sort answers", async () => {
@@ -139,5 +139,56 @@ describe("routing and origins", () => {
     const other = await post("/gate", gateBody(), { ...pinned, headers: { Origin: "chrome-extension://someoneelse" } });
     expect(other.status).toBe(403);
     expect((await post("/gate", gateBody(), { ...pinned, headers: { Origin: mine } })).status).toBe(200);
+  });
+});
+
+describe("QA round 2, H2: the chat and the agent are not used up by other calls", () => {
+  it("counts a cache read at a tenth of an input token", async () => {
+    mockAnthropic({ answer: { decision: "deny", minutes: 0, reply: "No." }, inputTokens: 0, outputTokens: 0, cacheReadTokens: 100_000 });
+    const body = gateBody();
+    const env = { env: { MAX_TOKENS_PER_INSTALL: "15000" } };
+    expect((await post("/gate", body, env)).status).toBe(200); // 10,000 counted
+    expect((await post("/gate", body, env)).status).toBe(200); // 10,000 < 15,000, so allowed; now 20,000
+    expect((await post("/gate", body, env)).status).toBe(429);
+  });
+
+  it("lets a student send 30 chat messages in a day (QA: the chat stopped after 8 or 9)", async () => {
+    mockAnthropic({ answer: { reply: "OK.", question: null, diff: [] }, inputTokens: 900, outputTokens: 120, cacheReadTokens: 2000 });
+    const installId = crypto.randomUUID();
+    const rules = { kinds: { video: 20 }, sites: {}, videos: [], dayStart: 4 };
+    for (let i = 0; i < 30; i++) {
+      const res = await post("/rules", { installId, message: `message ${i}`, today: "2026-10-17", history: [], rules });
+      expect(res.status, `message ${i + 1}`).toBe(200);
+    }
+  });
+
+  it("keeps the agent's allowance when the gate has used up the shared cap", async () => {
+    mockAnthropic({ answer: { decision: "deny", when: null, reply: "No." } });
+    const installId = crypto.randomUUID();
+    const env = { env: { MAX_CALLS_PER_INSTALL: "1" } };
+    expect((await post("/gate", gateBody({ installId }), env)).status).toBe(200);
+    expect((await post("/gate", gateBody({ installId }), env)).status).toBe(429);
+    const loosen = { installId, kind: "rules", changes: ["Video: 20 → 45 min"], message: "two lectures a day now" };
+    expect((await post("/loosen", loosen, env)).status).toBe(200);
+  });
+
+  it("says when the caps reset, as 'not now'", async () => {
+    mockAnthropic();
+    const env = { env: { MAX_CALLS_PER_INSTALL: "0" } };
+    const res = await post("/gate", gateBody(), { ...env, headers: { Origin: "chrome-extension://abcdefghijklmnopabcdefghijklmnop" } });
+    expect(res.status).toBe(429);
+    const out = (await res.json()) as { resets: string };
+    expect(out).toMatchObject({ error: "daily_limit", scope: "install" });
+    expect(out.resets).toMatch(/^\d{4}-\d{2}-\d{2}T00:00:00\.000Z$/);
+    const wait = Number(res.headers.get("Retry-After"));
+    expect(wait).toBeGreaterThan(0);
+    expect(wait).toBeLessThanOrEqual(86400);
+    expect(res.headers.get("Access-Control-Expose-Headers")).toBe("Retry-After");
+  });
+
+  it("caches the system prompt", async () => {
+    const calls = mockAnthropic();
+    await post("/gate", gateBody());
+    expect(calls[0]!.body.system).toEqual([{ type: "text", text: expect.any(String), cache_control: { type: "ephemeral" } }]);
   });
 });

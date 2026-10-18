@@ -33,6 +33,15 @@ function corsHeaders(origin: string | null): Record<string, string> {
 }
 
 function json(body: unknown, status: number, origin: string | null): Response {
+  if (status === 429 && typeof body === "object" && body !== null && (body as { error?: unknown }).error === "daily_limit") {
+    // "Not now": the caps reset at the next 00:00 UTC.
+    const resets = new Date(new Date().setUTCHours(24, 0, 0, 0));
+    const wait = Math.max(1, Math.ceil((resets.getTime() - Date.now()) / 1000));
+    return new Response(JSON.stringify({ ...body, resets: resets.toISOString() }), {
+      status,
+      headers: { "Content-Type": "application/json", "Retry-After": String(wait), ...corsHeaders(origin), ...(origin ? { "Access-Control-Expose-Headers": "Retry-After" } : {}) },
+    });
+  }
   return new Response(JSON.stringify(body), {
     status,
     headers: { "Content-Type": "application/json", ...corsHeaders(origin) },
@@ -93,21 +102,24 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext, origin:
   if (pathname === "/rules") {
     const input = rulesInput(body);
     const full = await reserveCall(env, input.installId, ip, {
-      name: "rules", maxCalls: intVar(env.MAX_RULES_PER_INSTALL, 20), shared: true,
+      name: "rules", maxCalls: intVar(env.MAX_RULES_PER_INSTALL, 40), shared: false,
     });
     if (full) return json({ error: "daily_limit", scope: full }, 429, origin);
     const { result, tokens } = await rules(env, input);
-    ctx.waitUntil(recordTokens(env, input.installId, tokens));
+    ctx.waitUntil(recordTokens(env, input.installId, tokens, false));
     return json(result, 200, origin);
   }
 
   if (pathname === "/loosen") {
     // A request to loosen a rule, with the student's reason. Nothing of it is stored.
+    // Its own allowance, so gate calls can never use up the agent's.
     const input = loosenInput(body);
-    const full = await reserveCall(env, input.installId, ip);
+    const full = await reserveCall(env, input.installId, ip, {
+      name: "loosen", maxCalls: intVar(env.MAX_LOOSEN_PER_INSTALL, 10), shared: false,
+    });
     if (full) return json({ error: "daily_limit", scope: full }, 429, origin);
     const { result, tokens } = await loosen(env, input);
-    ctx.waitUntil(recordTokens(env, input.installId, tokens));
+    ctx.waitUntil(recordTokens(env, input.installId, tokens, false));
     return json(result, 200, origin);
   }
 

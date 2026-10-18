@@ -17,8 +17,8 @@ describe("POST /gate", () => {
     expect(url).toBe("https://api.anthropic.com/v1/messages");
     expect(headers.get("x-api-key")).toBe("sk-ant-test-not-a-real-key");
     expect(body.model).toBe("claude-haiku-5-5");
-    expect(body.system).toBe(gatePrompt);
-    expect(body.system).toContain("You start from no.");
+    expect(body.system[0].text).toBe(gatePrompt);
+    expect(body.system[0].text).toContain("You start from no.");
     expect(body.output_config.effort).toBe("low");
     expect(body.output_config.format.type).toBe("json_schema");
     expect(body.output_config.format.schema.properties.decision.enum).toEqual(["allow", "deny", "ask"]);

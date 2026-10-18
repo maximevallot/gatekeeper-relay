@@ -3,7 +3,10 @@ import { createServer } from "node:http";
 
 const KINDS = { "agar.io": "games", "instagram.com": "social", "canvas.mit.edu": "study" };
 
-function answer(body) {
+function answer(raw) {
+  // The relay sends the system prompt as a cached text block.
+  const system = Array.isArray(raw.system) ? raw.system.map((b) => b.text).join("") : raw.system;
+  const body = { ...raw, system };
   const user = body.messages?.[0]?.content ?? "";
   if (body.system?.includes("You sort websites")) {
     const domain = /^domain: (.+)$/m.exec(user)?.[1] ?? "";

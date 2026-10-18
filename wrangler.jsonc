@@ -19,8 +19,10 @@
     "MAX_PASS_MINUTES": "10",
     // The longest pass in exam mode, which the gate gives only for a page that serves the exam.
     "MAX_EXAM_PASS_MINUTES": "5",
-    // Rules chat messages per install per UTC day (each about 2,000 tokens, inside the install's shared caps).
-    "MAX_RULES_PER_INSTALL": "20",
+    // Rules chat messages per install per UTC day: an allowance of their own, outside the shared caps.
+    "MAX_RULES_PER_INSTALL": "40",
+    // Requests to loosen a rule per install per UTC day: their own, so the gate can't use up the agent.
+    "MAX_LOOSEN_PER_INSTALL": "10",
     // Videos judged per install per UTC day (about 600 tokens each), an allowance of their own.
     "MAX_JUDGE_PER_INSTALL": "150",
     // Comma-separated exact origins, e.g. "chrome-extension://abcdef...".

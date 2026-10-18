@@ -1,7 +1,7 @@
 import loosenPrompt from "../prompts/loosen.md";
 import { askClaude } from "./claude";
 import type { Env } from "./env";
-import type { LoosenInput } from "./validate";
+import { examText, type LoosenInput } from "./validate";
 
 export interface LoosenResult {
   decision: "allow" | "deny" | "ask";
@@ -21,17 +21,31 @@ const SCHEMA = {
   additionalProperties: false,
 };
 
+/** How close to exam mode's end a claim that the exam is over may end it at once, without a known exam time. */
+const END_WINDOW_MS = 3 * 60 * 60 * 1000;
+
+/**
+ * Whether ending exam mode at once is possible at all: the relay's own clock (never the device's) is past
+ * the exam's own time, or within three hours of exam mode's end. Before that, the exam cannot be over yet.
+ */
+export function canEndNow(input: LoosenInput, serverNow = Date.now()): boolean {
+  if (input.kind !== "exam" || !input.exam) return false;
+  if (input.exam.at && serverNow >= Date.parse(input.exam.at)) return true;
+  return serverNow >= Date.parse(input.exam.until) - END_WINDOW_MS;
+}
+
 /** What the key-holder says when the model gives nothing usable: the rule stays. */
 const FALLBACK: LoosenResult = { decision: "deny", when: null, reply: "The rule stays as it is for now." };
 
-export function loosenUserMessage(input: LoosenInput, date: string): string {
+export function loosenUserMessage(input: LoosenInput, date: string, endNow = false): string {
   const strip = (s: string, tag: string) => s.replace(new RegExp(`</?${tag}>`, "gi"), "");
-  const exam = input.exam
-    ? `on until ${input.exam.until}${input.exam.goal ? `, for "${input.exam.goal}"` : ""}`
-    : "off";
+  const exam = examText(input.exam);
   return [
     input.now ? `now: ${input.now}` : `today: ${date}`,
     `exam mode: ${exam}`,
+    ...(input.kind === "exam"
+      ? [`can the exam be over by now: ${endNow ? "yes" : "no, its time has not come; a claim that it is over is not true"}`]
+      : []),
     `goal: ${input.goal || "not given"}`,
     `kind: ${input.kind}`,
     `changes:\n${input.changes.map((c) => `- ${c}`).join("\n")}`,
@@ -43,9 +57,10 @@ export function loosenUserMessage(input: LoosenInput, date: string): string {
 
 /**
  * Whatever the model returns: one of the three decisions, a short reply, never "ask" twice, and a yes
- * that takes effect at once only when it ends exam mode; every other loosening waits for the morning.
+ * that takes effect at once only when it ends exam mode and the exam can be over by now (canEndNow);
+ * every other loosening waits for the morning.
  */
-export function enforceLoosen(data: unknown, asked: boolean, kind: LoosenInput["kind"] = "rules"): LoosenResult {
+export function enforceLoosen(data: unknown, asked: boolean, kind: LoosenInput["kind"] = "rules", endNow = false): LoosenResult {
   if (typeof data !== "object" || data === null) return FALLBACK;
   const d = data as Record<string, unknown>;
   const decision = d.decision;
@@ -54,12 +69,18 @@ export function enforceLoosen(data: unknown, asked: boolean, kind: LoosenInput["
   if (!reply) return FALLBACK;
   if (decision === "ask" && asked) return { decision: "deny", when: null, reply };
   if (decision !== "allow") return { decision, when: null, reply };
-  return { decision, when: kind === "exam" && d.when === "now" ? "now" : "morning", reply };
+  if (kind === "exam" && d.when === "now") {
+    if (endNow) return { decision, when: "now", reply };
+    // The model said "now" before the exam's time: the server keeps the morning, and says so.
+    return { decision, when: "morning", reply: "Exam mode ends tomorrow morning: the exam's time hasn't come yet." };
+  }
+  return { decision, when: "morning", reply };
 }
 
 export async function loosen(env: Env, input: LoosenInput): Promise<{ result: LoosenResult; tokens: number }> {
   const date = new Date().toISOString().slice(0, 10);
-  const out = await askClaude(env, { system: loosenPrompt, user: loosenUserMessage(input, date), schema: SCHEMA, maxTokens: 1024 });
-  const result = out.ok ? enforceLoosen(out.data, !!input.asked, input.kind) : FALLBACK;
+  const endNow = canEndNow(input);
+  const out = await askClaude(env, { system: loosenPrompt, user: loosenUserMessage(input, date, endNow), schema: SCHEMA, maxTokens: 1024 });
+  const result = out.ok ? enforceLoosen(out.data, !!input.asked, input.kind, endNow) : FALLBACK;
   return { result, tokens: out.tokens };
 }

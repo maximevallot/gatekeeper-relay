@@ -24,7 +24,7 @@ describe("POST /judge", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ rule: "v1", judged: true });
     expect(calls).toHaveLength(1);
-    expect(calls[0]!.body.system).toBe(judgePrompt);
+    expect(calls[0]!.body.system[0].text).toBe(judgePrompt);
     expect(calls[0]!.body.messages[0].content).toBe(
       [
         "site: youtube.com",
@@ -75,6 +75,6 @@ describe("POST /judge", () => {
     expect((await post("/judge", body({ installId }), { env })).status).toBe(200);
     const third = await post("/judge", body({ installId }), { env });
     expect(third.status).toBe(429);
-    expect(await third.json()).toEqual({ error: "daily_limit", scope: "install" });
+    expect(await third.json()).toMatchObject({ error: "daily_limit", scope: "install" });
   });
 });

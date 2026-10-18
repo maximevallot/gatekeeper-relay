@@ -1,7 +1,7 @@
 import gatePrompt from "../prompts/gate.md";
 import { askClaude } from "./claude";
 import { type Env, intVar } from "./env";
-import type { GateInput } from "./validate";
+import { examText, type GateInput } from "./validate";
 
 export type Decision = "allow" | "deny" | "ask";
 
@@ -27,9 +27,7 @@ const FALLBACK: GateResult = { decision: "deny", minutes: 0, reply: "The gate st
 
 export function gateUserMessage(input: GateInput, date: string): string {
   const deadlines = input.deadlines.length ? input.deadlines.map((d) => `- ${d}`).join("\n") : "none given";
-  const exam = input.exam
-    ? `on until ${input.exam.until}${input.exam.goal ? `, for "${input.exam.goal}"` : ""}`
-    : "off";
+  const exam = examText(input.exam);
   return [
     input.now ? `now: ${input.now}` : `today: ${date}`,
     `exam mode: ${exam}`,

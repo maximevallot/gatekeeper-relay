@@ -11,7 +11,7 @@ Milestone 1 of Gatekeeper makes no network calls. Milestone 2 uses `/gate` (the 
 `/rules`, `/gate` and `/loosen` also take two optional fields:
 
 - `now`: the student's local time with its offset, such as `"2026-10-17T14:05:00-04:00"`. Without it, the prompts get the UTC date.
-- `exam`: `{ "until": "2026-10-21T08:30:00-04:00", "goal": "Midterm 15.425" }` while exam mode is on, `null` or absent when it is off. `until` uses the same format as `now`.
+- `exam`: `{ "until": "2026-10-21T08:30:00-04:00", "goal": "Midterm 15.425" }` while exam mode is on, `null` or absent when it is off. `until` uses the same format as `now`. An optional `at` is the exam's own time (a calendar event's start, or one the student gave), in the same format.
 
 A malformed `now` or `exam` is a 400 (`invalid_now`, `invalid_exam`). Fields the relay does not know are ignored, so the extension can send new ones before the relay is redeployed.
 
@@ -98,7 +98,7 @@ The agent that holds the key to loosening: a request to loosen a rule or end exa
 ```
 
 - `kind` is `rules` or `exam`. `decision` is `allow`, `deny` or `ask`; `ask` comes at most once (with `asked` set, an ask counts as no).
-- `when` is `"now"` or `"morning"` with `allow`, `null` otherwise. `"now"` only for ending exam mode when the exam is over; every other yes applies the next morning. An extension that gets no `when` (an older relay) should treat a yes as `"morning"`.
+- `when` is `"now"` or `"morning"` with `allow`, `null` otherwise. Every yes applies the next morning, except ending exam mode once the exam can be over: `"now"` is allowed only when the relay's own clock (never the device's) is past `exam.at`, or within 3 hours of `exam.until` (`canEndNow` in [src/loosen.ts](src/loosen.ts)). Before that, a model's "now" is turned into "morning" and the reply says the exam's time hasn't come yet, and the prompt treats "it's over" as untrue. This closes QA round 2's C3, where "exam is over" ended exam mode two days before the midterm. An extension that gets no `when` (an older relay) should treat a yes as `"morning"`.
 
 ### `POST /judge`
 
@@ -122,7 +122,7 @@ Every error is JSON `{ "error": "<code>" }`.
 | --- | --- | --- |
 | 400 | `invalid_install_id`, `invalid_kind`, `missing_message`, `message_too_long`, `invalid_json`, `body_too_large`, … | The request is malformed. No Claude call was made. |
 | 403 | `origin_not_allowed` | The request came from a web page, not the extension. |
-| 429 | `daily_limit` with `scope`: `install`, `ip` or `global` | A daily cap is reached. Resets at 00:00 UTC (20:00 in Boston during daylight time). |
+| 429 | `daily_limit` with `scope`: `install`, `ip` or `global`, and `resets` (ISO time) | A daily cap is reached: "not now". Resets at 00:00 UTC (20:00 in Boston during daylight time); a `Retry-After` header gives the seconds. |
 | 502 | `upstream_error` | The Anthropic API failed. |
 | 503 | `upstream_busy` | The Anthropic API is overloaded or rate-limited us. |
 
@@ -139,7 +139,8 @@ All are `vars` in [wrangler.jsonc](wrangler.jsonc), counted per UTC day in a Dur
 | `MAX_CALLS_PER_IP` | 300 | One machine minting fresh installIds to reset its caps. |
 | `GLOBAL_DAILY_TOKENS` | 3000000 | Everything together. At Haiku 5.5 prices this is at most $0.30 a day if all input, $1.50 if all output. |
 | `MAX_PASS_MINUTES` | 10 | The longest pass the gate may grant. |
-| `MAX_RULES_PER_INSTALL` | 20 | Rules chat messages per install. They also count against the install's shared caps above. |
+| `MAX_RULES_PER_INSTALL` | 40 | Rules chat messages per install: an allowance of its own, outside the install's shared caps (QA round 2 found the chat stopped after 8 or 9 messages when it shared them). |
+| `MAX_LOOSEN_PER_INSTALL` | 10 | Requests to loosen a rule per install: an allowance of its own, so gate calls can never use up the agent. |
 | `MAX_JUDGE_PER_INSTALL` | 150 | Videos judged per install: an allowance of its own, outside the install's shared caps, so watching YouTube does not use up the gate. Counts against the IP and global caps. |
 | `ALLOWED_ORIGINS` | empty | Empty allows any `chrome-extension://` origin (Chrome and Brave). Set it to the extension's own origin once it has a fixed ID. |
 
@@ -189,7 +190,7 @@ npm run check
 `npm run check` runs three things, none of which needs a key or an account or touches the network:
 
 1. `npm run typecheck`: TypeScript.
-2. `npm test`: 62 vitest tests inside the Workers runtime (`@cloudflare/vitest-plugin`), with a mocked Anthropic API. They cover the request sent to Claude, the minute clamp, refusals and bad output, upstream failures, installId and field validation, every cap, the sort cache, origins, the rules chat and video judge (their checks on the model output, input validation and allowances), loosening, and exam mode across `/rules`, `/gate` and `/loosen`.
+2. `npm test`: 76 vitest tests inside the Workers runtime (`@cloudflare/vitest-plugin`), with a mocked Anthropic API. They cover the request sent to Claude, the minute clamp, refusals and bad output, upstream failures, installId and field validation, every cap, the sort cache, origins, the rules chat and video judge (their checks on the model output, input validation and allowances), loosening, and exam mode across `/rules`, `/gate` and `/loosen`.
 3. `npm run smoke`: starts the real Worker under `wrangler dev`, points it at a fake Anthropic server on localhost ([scripts/mock-anthropic.mjs](scripts/mock-anthropic.mjs)) and checks both endpoints end to end.
 
 To try it against the real API locally, copy `.dev.vars.example` to `.dev.vars`, put a key in it, and run `npm run dev`. `.dev.vars` is git-ignored.
@@ -274,7 +275,7 @@ Create a new key in the Console, run `npx wrangler secret put ANTHROPIC_API_KEY`
 - **Sort answers are shared.** The first title sent for a domain shapes the answer every user gets for 90 days. The prompt says to judge the domain, not the page, and to ignore instructions in the title; a wrong kind can be fixed by deleting the KV key `kind:v1:<domain>` in the Cloudflare dashboard.
 - **Students behind one NAT** share the per-IP cap of 300 calls a day. Raise `MAX_CALLS_PER_IP` if a campus network trips it.
 - **No limit on passes per day.** The call cap bounds it at 60 tries; the extension can add its own rule if passes pile up.
-- **Prompt caching is off.** The gate prompt is likely shorter than the minimum cacheable prefix for Haiku, so it would save little.
+- **Prompt caching is on, unmeasured.** Every system prompt is sent as a cached block, and a cache read counts as a tenth of a token against the caps, as it is billed. Whether a prompt is long enough for Haiku 5.5 to cache it has not been checked against real usage numbers; a prompt that is too short simply isn't cached.
 
 ## Layout
 

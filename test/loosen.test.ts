@@ -20,7 +20,7 @@ describe("POST /loosen", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ decision: "allow", when: "morning", reply: "OK: 45 minutes of video a day from tomorrow morning." });
     expect(calls).toHaveLength(1);
-    expect(calls[0]!.body.system).toBe(loosenPrompt);
+    expect(calls[0]!.body.system[0].text).toBe(loosenPrompt);
     const content = calls[0]!.body.messages[0].content as string;
     expect(content).toContain("goal: Finish the 15.390 slides");
     expect(content).toContain("kind: rules");

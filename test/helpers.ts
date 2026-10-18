@@ -12,6 +12,7 @@ export interface MockReply {
   status?: number;
   inputTokens?: number;
   outputTokens?: number;
+  cacheReadTokens?: number;
 }
 
 export interface Captured {
@@ -49,7 +50,7 @@ export function mockAnthropic(...replies: MockReply[]): Captured[] {
         input_tokens: r.inputTokens ?? 700,
         output_tokens: r.outputTokens ?? 60,
         cache_creation_input_tokens: 0,
-        cache_read_input_tokens: 0,
+        cache_read_input_tokens: r.cacheReadTokens ?? 0,
       },
     });
   });

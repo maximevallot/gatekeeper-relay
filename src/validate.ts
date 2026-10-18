@@ -56,6 +56,14 @@ export function isLocalTime(v: unknown): v is string {
 export interface Exam {
   until: string;
   goal: string;
+  /** The exam's own time (a calendar event's start, or one the student gave), if known. */
+  at: string | null;
+}
+
+/** Exam mode in one line, as the prompts read it. */
+export function examText(exam: Exam | null): string {
+  if (!exam) return "off";
+  return `on until ${exam.until}${exam.goal ? `, for "${exam.goal}"` : ""}${exam.at ? `; the exam itself is at ${exam.at}` : ""}`;
 }
 
 /** `now`, optional: the student's local time with its offset. */
@@ -73,7 +81,9 @@ function exam(body: Obj): Exam | null {
   if (!isObject(v) || !isLocalTime(v.until)) throw new BadRequest("invalid_exam");
   const goal = v.goal ?? "";
   if (typeof goal !== "string" || goal.length > 300) throw new BadRequest("invalid_exam");
-  return { until: v.until, goal: goal.replace(/\s+/g, " ").trim() };
+  const at = v.at ?? null;
+  if (at !== null && !isLocalTime(at)) throw new BadRequest("invalid_exam");
+  return { until: v.until, goal: goal.replace(/\s+/g, " ").replace(/"/g, "'").trim(), at };
 }
 
 /** Lowercases, drops a scheme, path, port and leading "www.", and checks what is left is a hostname. */

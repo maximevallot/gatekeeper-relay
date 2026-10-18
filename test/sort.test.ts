@@ -17,7 +17,7 @@ describe("POST /sort", () => {
     expect(calls).toHaveLength(1);
     const body = calls[0]!.body;
     expect(body.model).toBe("claude-haiku-5-5");
-    expect(body.system).toBe(sortPrompt);
+    expect(body.system[0].text).toBe(sortPrompt);
     expect(body.output_config.format.schema.properties.kind.enum).toEqual([
       "social", "video", "games", "news", "shopping", "work", "study", "other",
     ]);
