@@ -17,6 +17,19 @@ A malformed `now` or `exam` is a 400 (`invalid_now`, `invalid_exam`). Fields the
 
 Exam mode, as Maxime decided it on 2026-10-17: it closes every site except study sites until its end; the gate gives a short pass only for a page that serves the exam; ending it early goes through `/loosen`, where a yes ends it at once if the exam is over and otherwise the next morning.
 
+## The account (0.3.0, branch `account`, not deployed)
+
+One Gatekeeper per person, as Maxime approved on 2026-10-18 ([the design](../brain/outputs/html/2026-10-17-gatekeeper-one-per-person.html)). Each person's account is a Durable Object (`Account`) running the extension's engine unchanged. It holds the only true copy of the rules, today's minutes, exam mode, the chat and the history. Browsers and the Mac app keep a copy and sync about every 30 seconds. The API is [docs/account-contract.md](docs/account-contract.md).
+
+- **The engine** is vendored in `vendor/engine/` from `~/gatekeeper-app/extension/engine` at a pinned commit (`vendor/engine/SOURCE.md`); `scripts/vendor-engine.sh <commit>` refreshes it. Never edit it here.
+- **Time zone:** the engine reads local time and Workers run in UTC, so every engine call runs inside `withTimeZone` ([src/account/tz.ts](src/account/tz.ts)), which makes the Date methods it uses read the account's time zone for that synchronous call.
+- **Spans** ([src/account/spans.ts](src/account/spans.ts)): time from every device counts once. Each bucket's seconds are the length of the union of today's spans, and passes run down on the union of all spans.
+- **Joining** ([src/account/merge.ts](src/account/merge.ts)): the account's rules stay whole, today's minutes are added, the later exam end wins, the account's passes and loosening stay, and chat and log are interleaved. This stands in until the engine has its own `join`.
+- **Requests** ([src/account/requests.ts](src/account/requests.ts)) are the extension's background handlers run on the account. The gate, the chat and a loosening ask Claude from inside the account, under one allowance per account. The Mac may only start exam mode.
+- **Codes** (`Pairing`): 6 digits, 10 minutes, one use, one object per code. Tries are limited to 30 a day per network address, and new accounts to 20.
+- `npm run smoke:account` runs it end to end under `wrangler dev` with Brave, Safari and the Mac simulated (22 checks).
+- The 0.3.0 privacy policy is drafted in `pages/privacy-0.3.0-draft.html`. `/privacy` still serves 0.1.1, unchanged.
+
 ## Endpoints
 
 ### `POST /gate`
@@ -190,7 +203,7 @@ npm run check
 `npm run check` runs three things, none of which needs a key or an account or touches the network:
 
 1. `npm run typecheck`: TypeScript.
-2. `npm test`: 79 vitest tests inside the Workers runtime (`@cloudflare/vitest-plugin`), with a mocked Anthropic API. They cover the request sent to Claude, the minute clamp, refusals and bad output, upstream failures, installId and field validation, every cap, the sort cache, origins, the rules chat and video judge (their checks on the model output, input validation and allowances), loosening, and exam mode across `/rules`, `/gate` and `/loosen`.
+2. `npm test`: 114 vitest tests inside the Workers runtime (`@cloudflare/vitest-plugin`), with a mocked Anthropic API. They cover the request sent to Claude, the minute clamp, refusals and bad output, upstream failures, installId and field validation, every cap, the sort cache, origins, the rules chat and video judge (their checks on the model output, input validation and allowances), loosening, and exam mode across `/rules`, `/gate` and `/loosen`.
 3. `npm run smoke`: starts the real Worker under `wrangler dev`, points it at a fake Anthropic server on localhost ([scripts/mock-anthropic.mjs](scripts/mock-anthropic.mjs)) and checks both endpoints end to end.
 
 To try it against the real API locally, copy `.dev.vars.example` to `.dev.vars`, put a key in it, and run `npm run dev`. `.dev.vars` is git-ignored.

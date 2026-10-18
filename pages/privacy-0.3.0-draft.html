@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gatekeeper privacy policy</title>
+<style>
+  :root { --bg: #fbfbfa; --fg: #1b1f24; --muted: #5d6670; --line: #dde1e5; --accent: #3d5afe; color-scheme: light dark; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #141414; --fg: #ececec; --muted: #a3a9b0; --line: #2c2f33; --accent: #8fa2ff; } }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  main { max-width: 42rem; margin: 0 auto; padding: 48px 20px 72px; }
+  h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 4px; }
+  h2 { font-size: 1.15rem; margin: 36px 0 8px; }
+  p, li { margin: 0 0 10px; }
+  .muted { color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; font-size: 0.95rem; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px 8px 0; border-top: 1px solid var(--line); }
+  th { font-weight: 600; }
+  code { font-size: 0.9em; }
+  a { color: var(--accent); }
+  .wrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+<main>
+<h1>Gatekeeper privacy policy</h1>
+<p class="muted"><b>Draft for Gatekeeper 0.3.0, 18 October 2026, not published.</b> What changes from 0.2.0: Gatekeeper now has an account, kept on our relay, so all your browsers and the Mac app share one set of rules and one count of today's time. Applies to the Gatekeeper browser extension and Gatekeeper for Mac.</p>
+
+<p>Gatekeeper is made by Maxime Vallot, an individual developer. Contact: mvallot22@gmail.com.</p>
+
+<h2>The short version</h2>
+<ul>
+  <li>When you finish the welcome, Gatekeeper makes your Gatekeeper account on our relay. It keeps your rules, today's minutes, exam mode, your talk with Gatekeeper and 30 days of history, so every device you add shares them. There is no name, email or password: a device joins with a 6-digit code shown on a device you already have.</li>
+  <li>The account counts time by kind of site, never by page. Gatekeeper never sends page addresses or page content, and never reads what is on a web page.</li>
+  <li>With Claude help on, your account asks Claude (Anthropic's AI) for the gate's answers, the rules chat, sorting unknown sites and judging YouTube videos. Claude help stays off until you turn it on.</li>
+  <li>You can see every device in the account, remove one, leave the account on one device, get a copy of everything, or delete the account at once.</li>
+  <li>We do not sell your data, use it for advertising, or build a profile of you.</li>
+</ul>
+
+<h2>What your account keeps on our relay</h2>
+<p>Your Gatekeeper account is kept by our relay, which runs on Cloudflare. Gatekeeper has to read this data to decide what to close, so it is not end-to-end encrypted; Cloudflare encrypts it on its disks.</p>
+<ul>
+  <li>Your rules: which kinds of site you limit and the minutes for each, your own sites and any limit you gave a single site, your video rules, the hour your day starts, and the goal sentence you wrote.</li>
+  <li>Today's time: for each kind of site, each site with its own limit and each video rule, the periods you spent on it today (for example "social, 21:04 to 21:09"). Not which page, and not sites Gatekeeper doesn't limit.</li>
+  <li>History: one line per day for the last 30 days (minutes per kind, minutes allowed, how often the gate closed a site, passes), and a log of the last 300 events: rule changes, passes and refusals at the gate, requests to loosen a rule with the reason you gave, and exam mode starting and ending.</li>
+  <li>Exam mode, while it is on: when it ends and what it is for.</li>
+  <li>Your talk with Gatekeeper: the last 50 messages of the rules chat, and the change waiting for Apply.</li>
+  <li>Passes the gate granted today, and when the gate listens again.</li>
+  <li>The kind each site Gatekeeper sorted belongs to, and which video rule each YouTube video you opened falls under, by video ID, for the 300 most recent.</li>
+  <li>If you pasted a calendar link: the titles and times of its events for the next 14 days, as your device read them. Never the link.</li>
+  <li>Your yes to Claude help, with the version of the text you said yes to.</li>
+  <li>Your devices: a name such as "Brave on Mac", when each joined and last synced, and a scrambled form of each device's key. Your time zone, so the day starts at the right hour.</li>
+  <li>When a device with rules of its own joins, the account keeps those rules for 30 days, so you can still choose them.</li>
+</ul>
+<p>Each device keeps a copy, so Gatekeeper keeps working without the internet. A device syncs with the account about every 30 seconds while you use it: it sends the periods of time it counted and what you changed, and gets the account's copy back.</p>
+
+<h2>What stays on each device</h2>
+<ul>
+  <li>The address of the tab in front of you, and of any tab playing sound. Gatekeeper checks it every few seconds, on your computer, only to match it to a kind of site and count time. It never leaves the device.</li>
+  <li>Your calendar link, if you pasted one. Gatekeeper reads the calendar from your computer; the calendar's own service (Canvas, Google) sees that request, as it would from your calendar app.</li>
+  <li>The device's key to your account, and which apps exam mode hides on the Mac.</li>
+</ul>
+<p>If you have a video rule, Gatekeeper asks YouTube, through YouTube's public oEmbed address, for the title and channel of each YouTube video you open, using the video's ID. YouTube already knows you are watching that video; nothing else is sent to YouTube.</p>
+<p>When your computer's clock jumps (after sleep, or if it's changed), Gatekeeper asks its relay for the time. Nothing is sent with that request.</p>
+
+<h2>What is sent to Claude, and only with Claude help on</h2>
+<p>Your account sends these to Anthropic's Claude and keeps the answer as listed above. Anthropic does not use API requests to train its models, and keeps them for a limited time under its own terms.</p>
+<div class="wrap">
+<table>
+  <tr><th>Feature</th><th>What is sent</th><th>When</th></tr>
+  <tr><td>The gate can talk back</td><td>The site's domain (for example <code>youtube.com</code>) and its kind, today's minutes and budget for it, your goal sentence, what you type at the gate, your local time, whether exam mode is on (with when it ends, what it is for, and the exam's own time if known), and the titles and dates of up to 5 coming events from your calendar</td><td>When you write a message at the gate</td></tr>
+  <tr><td>Sort sites Gatekeeper doesn't know</td><td>The site's domain and the page title</td><td>Once per unknown site; the answer is shared by everyone and not linked to you</td></tr>
+  <tr><td>Change rules by chat</td><td>What you write, the six messages before it, your rules, whether exam mode is on, and your local time. Not your time on sites.</td><td>When you send a message in the chat</td></tr>
+  <tr><td>Asking to loosen a rule</td><td>The change in words, your goal sentence, the reason you type, the one question the agent may have asked, whether exam mode is on, and your local time</td><td>When you ask to loosen a rule or end exam mode early</td></tr>
+  <tr><td>Judge videos</td><td>The title and channel of a YouTube video, and the wording of your video rules. Not the video's address.</td><td>Once per video you open on YouTube, while you have a video rule</td></tr>
+</table>
+</div>
+
+<h2>Who receives it</h2>
+<ul>
+  <li><b>Cloudflare</b> runs our relay and stores your account, as our processor. Cloudflare keeps its usual technical records of requests, such as time and network address, under its own terms. Our relay does not log what you send.</li>
+  <li><b>Anthropic</b> provides Claude, as listed above, only with Claude help on.</li>
+  <li>Nobody else. No advertisers, analytics companies or data brokers.</li>
+</ul>
+<p>Our relay also keeps, for each account and each network address, a count of Claude requests and tokens per day, to cap use and prevent abuse, and a count of accounts made and codes tried per network address per day.</p>
+
+<h2>Your choices</h2>
+<ul>
+  <li><b>See and remove devices:</b> Settings › Devices. A removed device's key stops working at once, which covers a lost laptop.</li>
+  <li><b>Leave the account on one device:</b> that device keeps its copy and carries on alone. Leaving loosens nothing.</li>
+  <li><b>Get a copy of everything:</b> Settings › Export gives a file with everything your account keeps.</li>
+  <li><b>Delete my Gatekeeper account:</b> Settings › Delete. Everything the account keeps is deleted from our relay at once. Each device keeps its own copy and carries on alone; remove the extension to delete that too.</li>
+  <li>Turn Claude help off at any time. Nothing is sent to Claude after that.</li>
+</ul>
+<p>There is no way to recover an account if you lose every device, because Gatekeeper doesn't know your email. Signing in with email will come later, and you will be asked before it is added.</p>
+
+<h2>What we never do</h2>
+<ul>
+  <li>Sell your data or share it for advertising.</li>
+  <li>Use it for anything other than limiting the time you spend on distracting sites.</li>
+  <li>Let a person read it, unless you ask us to look into a problem, the law requires it, or we must investigate abuse.</li>
+</ul>
+
+<h2>Security</h2>
+<p>Everything travels over HTTPS. Each device has its own key to your account, kept on that device. The key to the AI model is held by the relay and never ships inside the extension.</p>
+
+<h2>Children</h2>
+<p>Gatekeeper is not meant for children under 13, and we do not knowingly collect their data.</p>
+
+<h2>Changes</h2>
+<p>If we change what Gatekeeper keeps or sends, the extension will say so and ask again before the change takes effect, and this page will show a new date.</p>
+
+<h2>Limited Use</h2>
+<p>Gatekeeper's use of information received from your browser adheres to the Chrome Web Store User Data Policy, including the Limited Use requirements.</p>
+</main>
+</body>
+</html>
