@@ -276,7 +276,8 @@ describe("the account after a no (a no holds only its own rule, 2026-10-18)", ()
     const calls = mockAnthropic({ answer: { reply: "Games budget changed from 15 to 30 minutes a day.", question: null, diff: [{ op: "budget", kind: "games", minutes: 30 }] } });
     await call("/account/sync", { now: Date.now(), requests: [{ id: "c", type: "chat", message: "give games 30 min" }] }, T);
     expect(calls).toHaveLength(1);
-    // Whatever the engine sends about the earlier no, the student never reads the change as made.
+    expect(calls[0]!.body.messages[0].content).not.toContain("locked until"); // the engine holds only that rule itself
+    // The student never reads the change as made.
     const turns = (await call("/account/sync", { now: Date.now(), want: [] }, T)).body.copy.thread.turns.map((t: any) => t.text);
     expect(turns.join(" ")).not.toContain("changed from 15 to 30");
   });
