@@ -2,7 +2,7 @@
 // object, named by the account id in the device's token, or found through a 6-digit code when joining.
 
 import type { Env } from "../env";
-import { reserveCall } from "../quota";
+import { reserveCall, today } from "../quota";
 import { isObject } from "../validate";
 import { CONTRACT, parseToken, type DeviceInfo, type Reply } from "./account";
 import { validTimeZone } from "./tz";
@@ -10,6 +10,7 @@ import { validTimeZone } from "./tz";
 export const MAX_ACCOUNT_BODY = 512 * 1024; // create and join carry a device's whole state
 const JOINS_PER_IP = 30; // wrong or right, a day: 6 digits can't be guessed
 const CODES_PER_ACCOUNT = 20;
+const CREATES_PER_IP = 20; // a household or a dorm network, not a script filling storage
 
 const fail = (status: number, error: string, more: Record<string, unknown> = {}): Reply => ({ status, body: { v: CONTRACT, error, ...more } });
 
@@ -19,6 +20,17 @@ function deviceInfo(raw: unknown): DeviceInfo | null {
   if (kind !== "extension" && kind !== "mac" && kind !== "phone") return null;
   const name = typeof raw.name === "string" ? raw.name.replace(/\s+/g, " ").trim().slice(0, 60) : "";
   return { name: name || (kind === "mac" ? "Gatekeeper for Mac" : "A browser"), kind };
+}
+
+/**
+ * A daily count per network address for creating accounts and trying codes. Only the address's own counter
+ * is used: these are not Claude calls, so they don't touch the address's Claude cap. Cloudflare always
+ * gives the address; without one (tests) there is nothing to count by.
+ */
+async function capped(env: Env, ip: string | null, name: string, max: number): Promise<boolean> {
+  if (!ip) return false;
+  const counter = env.QUOTA.get(env.QUOTA.idFromName(`${name}:${ip}`));
+  return !(await counter.reserve(today(), max, null));
 }
 
 const account = (env: Env, id: string) => env.ACCOUNT.get(env.ACCOUNT.idFromName("account:" + id));
@@ -33,6 +45,7 @@ export async function handleAccount(path: string, body: Record<string, unknown>,
   if (path === "/account/create") {
     const info = deviceInfo(body.device);
     if (!info) return fail(400, "invalid_device");
+    if (await capped(env, ip, "create-ip", CREATES_PER_IP)) return fail(429, "daily_limit", { scope: "ip" });
     const id = crypto.randomUUID();
     return account(env, id).create(id, info, tz, from, now);
   }
@@ -41,8 +54,7 @@ export async function handleAccount(path: string, body: Record<string, unknown>,
     const info = deviceInfo(body.device);
     if (!info) return fail(400, "invalid_device");
     if (typeof body.code !== "string" || !/^\d{6}$/.test(body.code)) return fail(400, "invalid_code");
-    const full = await reserveCall(env, "join", ip, { name: "join-ip:" + (ip || "none"), maxCalls: JOINS_PER_IP, shared: false });
-    if (full) return fail(429, "daily_limit", { scope: "ip" });
+    if (await capped(env, ip, "join-ip", JOINS_PER_IP)) return fail(429, "daily_limit", { scope: "ip" });
     const accountId = await env.PAIRING.get(env.PAIRING.idFromName("code:" + body.code)).consume(now);
     if (!accountId) return fail(404, "bad_code");
     return account(env, accountId).join(info, tz, from, now);

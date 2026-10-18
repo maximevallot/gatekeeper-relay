@@ -58,6 +58,13 @@ describe("the account: create", () => {
     expect(a.version).toBeGreaterThan(0);
   });
 
+  it("limits new accounts per network address", async () => {
+    const headers = { "CF-Connecting-IP": "198.51.100.77" };
+    let last = 0;
+    for (let i = 0; i < 21; i++) last = (await post("/account/create", { v: 1, device: { name: "x", kind: "extension" } }, { headers })).status;
+    expect(last).toBe(429);
+  });
+
   it("refuses other contract versions, devices and tokens", async () => {
     expect((await post("/account/create", { v: 2, device: { kind: "extension" } })).status).toBe(400);
     expect((await call("/account/create", { device: { kind: "toaster" } })).body.error).toBe("invalid_device");

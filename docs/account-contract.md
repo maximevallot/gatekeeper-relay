@@ -39,6 +39,8 @@ The first install of anything, when the welcome is finished. No question is aske
 
 → `{ "v": 1, "accountId": "…uuid…", "device": { "id": "…uuid…", "token": "gk1.…" }, "copy": { ... }, "version": 1, "serverNow": 1760800000123 }`
 
+New accounts are limited to 20 a day per network address (429 `daily_limit`, scope `ip`).
+
 The `accountId` is also the state's `installId`, so `/sort` and `/judge`, which devices still call directly, count against the account's daily allowance.
 
 ## Add a device: `POST /account/code` (authenticated)
