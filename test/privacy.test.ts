@@ -50,3 +50,15 @@ describe("HEAD / (the extension's time check)", () => {
     expect(res.headers.get("Access-Control-Expose-Headers")).toBe("Date");
   });
 });
+
+describe("GET /privacy/0.2 (the first testers' policy)", () => {
+  it("serves the 0.2.0 policy, and /privacy stays the 0.1.1 one", async () => {
+    const res = await get("/privacy/0.2");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("text/html; charset=utf-8");
+    const html = await res.text();
+    expect(html).toContain("change your rules by chat");
+    expect(await (await get("/privacy")).text()).not.toContain("change your rules by chat");
+    expect((await get("/privacy/0.2", "HEAD")).status).toBe(200);
+  });
+});

@@ -8,6 +8,7 @@ import { rules } from "./rules";
 import { cachedKind, sort } from "./sort";
 import { BadRequest, gateInput, isObject, judgeInput, loosenInput, rulesInput, sortInput } from "./validate";
 import privacyPage from "../pages/privacy.html";
+import privacyPage02 from "../pages/privacy-0.2.0.html";
 
 export { Quota } from "./quota";
 
@@ -79,6 +80,12 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext, origin:
   // The privacy policy the Chrome Web Store listing links to.
   if (pathname === "/privacy" && (request.method === "GET" || request.method === "HEAD")) {
     return new Response(request.method === "HEAD" ? null : privacyPage, {
+      headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=3600" },
+    });
+  }
+  // The 0.2.0 policy, for the first testers, who load 0.2.0 themselves; /privacy stays the store's until 0.2.0 is approved.
+  if (pathname === "/privacy/0.2" && (request.method === "GET" || request.method === "HEAD")) {
+    return new Response(request.method === "HEAD" ? null : privacyPage02, {
       headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=3600" },
     });
   }
