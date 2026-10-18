@@ -21,7 +21,7 @@ export type Op =
   | { op: "videoBudget"; id: string; minutes: number | null }
   | { op: "dropVideo"; id: string }
   | { op: "dayStart"; hour: number }
-  | { op: "examStart"; until: string; goal: string }
+  | { op: "examStart"; until: string; goal: string; at: string | null }
   | { op: "examEnd" };
 
 export interface RulesResult {
@@ -70,7 +70,7 @@ const SCHEMA = {
           obj("videoBudget", { id: { type: "string" }, minutes: nullableInt }),
           obj("dropVideo", { id: { type: "string" } }),
           obj("dayStart", { hour: { type: "integer" } }),
-          obj("examStart", { until: { type: "string" }, goal: { type: "string" } }),
+          obj("examStart", { until: { type: "string" }, goal: { type: "string" }, at: { anyOf: [{ type: "string" }, { type: "null" }] } }),
           obj("examEnd", {}),
         ],
       },
@@ -197,7 +197,13 @@ function cleanOp(raw: unknown, videoIds: Set<string>, input: RulesInput): Op | n
     }
     case "examStart": {
       const until = examUntil(o.until, input);
-      return until ? { op: "examStart", until, goal: cut(o.goal, 300) } : null;
+      if (!until) return null;
+      // The exam's own time, if the student gave it ("exam thursday 9am"): no later than exam mode's end, and not
+      // long past. With it, a yes to "the exam is over" can end exam mode at once once that time has come.
+      const t = isLocalTime(o.at) ? Date.parse(o.at) : NaN;
+      const now = input.now ? Date.parse(input.now) : Date.now();
+      const at = Number.isFinite(t) && t <= Date.parse(until) && t > now - 86400e3 ? (o.at as string) : null;
+      return { op: "examStart", until, goal: cut(o.goal, 300), at };
     }
     case "examEnd":
       return input.exam ? { op: "examEnd" } : null;

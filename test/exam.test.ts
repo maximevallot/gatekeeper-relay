@@ -71,16 +71,24 @@ describe("/rules knows exam mode", () => {
 
   it("keeps an exam start that makes sense and drops one that does not", async () => {
     const start = { op: "examStart", until: "2026-10-21T08:30:00-04:00", goal: "Midterm 15.425" };
-    expect(await rulesDiff([start])).toEqual([start]);
+    expect(await rulesDiff([start])).toEqual([{ ...start, at: null }]);
     expect(await rulesDiff([{ ...start, until: "2026-10-16T08:30:00-04:00" }])).toEqual([]); // in the past
     expect(await rulesDiff([{ ...start, until: "2026-12-21T08:30:00-04:00" }])).toEqual([]); // more than 30 days
     expect(await rulesDiff([{ ...start, until: "Wednesday 8:30" }])).toEqual([]); // not a time
     expect(await rulesDiff([{ ...start, until: "2026-10-21T08:30:00" }])).toEqual([]); // no offset
   });
 
+  it("keeps the exam's own time when the student gives it, and drops one after exam mode's end", async () => {
+    // QA round 3, N2: "exam thursday 9am" says when the exam is, so ending early can be "now" after it.
+    const start = { op: "examStart", until: "2026-10-22T12:00:00-04:00", goal: "Midterm", at: "2026-10-22T09:00:00-04:00" };
+    expect(await rulesDiff([start])).toEqual([start]);
+    expect(await rulesDiff([{ ...start, at: "2026-10-23T09:00:00-04:00" }])).toEqual([{ ...start, at: null }]); // after the end
+    expect(await rulesDiff([{ ...start, at: "Thursday 9am" }])).toEqual([{ ...start, at: null }]);
+  });
+
   it("extends exam mode but never shortens it through examStart", async () => {
     const later = { op: "examStart", until: "2026-10-21T12:00:00-04:00", goal: "Midterm 15.425" };
-    expect(await rulesDiff([later], { exam: EXAM })).toEqual([later]);
+    expect(await rulesDiff([later], { exam: EXAM })).toEqual([{ ...later, at: null }]);
     const earlier = { ...later, until: "2026-10-20T12:00:00-04:00" };
     expect(await rulesDiff([earlier], { exam: EXAM })).toEqual([]);
   });
