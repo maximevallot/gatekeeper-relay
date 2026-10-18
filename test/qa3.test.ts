@@ -65,7 +65,7 @@ describe("QA round 3, #4 (chat N1): after one no, the chat says what happens", (
     expect(loosens({ op: "videoBudget", id: "v1", minutes: 30 }, r)).toBe(true);
     expect(loosens({ op: "dropVideo", id: "v1" }, r)).toBe(true);
     expect(loosens({ op: "examEnd" }, r)).toBe(true);
-    expect(loosens({ op: "examStart", until: "x", goal: "" }, r)).toBe(false);
+    expect(loosens({ op: "examStart", until: "x", goal: "", at: null }, r)).toBe(false);
     expect(loosens({ op: "dayStart", hour: 6 }, r)).toBe(true);
   });
 });
