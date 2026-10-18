@@ -162,3 +162,8 @@ describe("no reply says 'watched' (Maxime: it feels like someone is watching)", 
     expect(rulesPrompt).not.toMatch(/A watched kind|watched or not|whether to watch/);
   });
 });
+
+it("says categories, not kinds, but leaves 'kinds of' alone", () => {
+  expect(voice("You have limits on two kinds right now.")).toBe("You have limits on two categories right now.");
+  expect(voice("All kinds of videos are fine.")).toBe("All kinds of videos are fine.");
+});

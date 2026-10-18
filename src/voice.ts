@@ -15,6 +15,8 @@ const SWAPS: [RegExp, string][] = [
   [/\b(is|are|was|were) not (being )?watched\b/gi, "$1 not limited"],
   [/\b(no longer|not) watched\b/gi, "not limited"],
   [/\bunwatched\b/gi, "not limited"],
+  // "kinds" as Gatekeeper's word for categories; "kinds of" stays ordinary English.
+  [/\bkinds\b(?! of)/gi, "categories"],
   [/\b(is|are|was|were|stays?|remains?) (being )?watched\b/gi, "$1 limited"],
   [/\bwatched (categor(?:y|ies)|kinds?|sites?)\b/gi, "limited $1"],
   [/\bwatched\b(?= (?:or not|and|,|\.))/gi, "limited"],
