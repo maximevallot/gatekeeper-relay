@@ -43,11 +43,12 @@ describe("QA round 3, #4 (chat N1): after one no, the chat says what happens", (
     expect(out.reply).toBe("The stricter part applies now. I said no to a loosening today, so the rest waits: ask again after 4:00.");
   });
 
-  it("without the flag, nothing changes", async () => {
+  it("without the flag, the change stays on the card, worded as a question for Gatekeeper, not as done", async () => {
+    const asked = { ...MODEL, reply: "Games: 15 → 30 minutes a day. That gives you more time, so Gatekeeper will ask you why before it changes." };
     mockAnthropic({ answer: MODEL });
-    expect(await (await post("/rules", body())).json()).toEqual(MODEL);
+    expect(await (await post("/rules", body())).json()).toEqual(asked);
     mockAnthropic({ answer: MODEL });
-    expect(await (await post("/rules", body(false))).json()).toEqual(MODEL);
+    expect(await (await post("/rules", body(false))).json()).toEqual(asked);
   });
 
   it("knows which changes loosen", async () => {

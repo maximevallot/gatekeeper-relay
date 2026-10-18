@@ -38,7 +38,11 @@ describe("POST /rules", () => {
     const calls = mockAnthropic({ answer: EXAMPLE_ANSWER });
     const res = await post("/rules", body());
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual(EXAMPLE_ANSWER);
+    // The free educational rule gives more time, so the reply says Gatekeeper will ask why (Maxime's test, 2026-10-18).
+    expect(await res.json()).toEqual({
+      ...EXAMPLE_ANSWER,
+      reply: "Videos about educational: lectures, tutorials: no limit. That gives you more time, so Gatekeeper will ask you why before it changes. The stricter part applies now.",
+    });
     const req = calls[0]!.body;
     expect(req.system[0].text).toBe(rulesPrompt);
     expect(req.output_config.format.type).toBe("json_schema");

@@ -248,7 +248,51 @@ export function enforceRules(data: unknown, input: RulesInput): RulesResult {
     }
   }
   if (!reply && !diff.length) return FALLBACK;
-  return { reply: reply || "Here is the change.", question: null, diff };
+  return { reply: honest(reply || "Here is the change.", diff, input), question: null, diff };
+}
+
+const WATCH_WEEK = "This first week Gatekeeper only watches and closes nothing, so your limits start when the week ends.";
+const LABELS: Record<string, string> = { social: "Social media", video: "Video", games: "Games", news: "News", shopping: "Shopping" };
+const amount = (m: number | null | undefined, free = "no limit") =>
+  m === undefined ? "no limit" : m === null ? free : m === 0 ? "closed all day" : `${m} minutes a day`;
+
+/** One loosening in plain words, from the rules as sent: "Video: 10 → 20 minutes a day". */
+export function describeLoosening(op: Op, r: RulesInput["rules"]): string {
+  const kinds = r.kinds as Record<string, number | undefined>;
+  const video = (id: string) => r.videos.find((v) => v.id === id);
+  switch (op.op) {
+    case "budget": return `${LABELS[op.kind]}: ${amount(kinds[op.kind]).replace(" minutes a day", "")} → ${amount(op.minutes)}`;
+    case "unwatch": return `${LABELS[op.kind]}: no limit`;
+    case "unsite": return `${op.domain}: back to Gatekeeper's own list`;
+    case "siteLimit": return `${op.domain}: ${amount(r.siteLimits[op.domain], "closed only in exam mode").replace(" minutes a day", "")} → ${amount(op.minutes, "closed only in exam mode")}`;
+    case "dropSiteLimit": return `${op.domain}: no limit of its own`;
+    case "addVideo": return `Videos about ${op.about}: no limit`;
+    case "videoBudget": { const v = video(op.id); return `Videos about ${v ? v.about : "that"}: ${amount(v?.minutes).replace(" minutes a day", "")} → ${amount(op.minutes)}`; }
+    case "dropVideo": { const v = video(op.id); return `The rule on videos about ${v ? v.about : "that"} goes`; }
+    case "dayStart": return `The day starts at ${op.hour}:00`;
+    case "examEnd": return "Ending exam mode early";
+    default: return "That change";
+  }
+}
+
+/**
+ * The reply never says a loosening is done before Gatekeeper said yes (Maxime's test: "actually no 20min"
+ * got "Video is now limited to 20 minutes"), and never promises "now" in the watch week. A card that loosens
+ * gets its reply from the changes themselves; in the watch week, timing sentences go and the week is named.
+ */
+export function honest(reply: string, diff: Op[], input: RulesInput): string {
+  const loose = diff.filter((op) => loosens(op, input.rules));
+  const tight = diff.length > loose.length;
+  if (loose.length) {
+    const what = loose.map((op) => describeLoosening(op, input.rules)).join("; ");
+    const tail = input.watching ? ` ${WATCH_WEEK}` : tight ? " The stricter part applies now." : "";
+    return `${what}. That gives you more time, so Gatekeeper will ask you why before it changes.${tail}`;
+  }
+  if (input.watching && diff.length) {
+    const kept = reply.split(/(?<=[.!?])\s+/).filter((s) => !/\b(now|at once|immediately|right away)\b/i.test(s));
+    return [...kept, WATCH_WEEK].join(" ").trim();
+  }
+  return reply;
 }
 
 /** Whether a change could give more time than the rules as sent. Unsure cases count as loosening. */

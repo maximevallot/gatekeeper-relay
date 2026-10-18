@@ -34,3 +34,24 @@ describe("replies speak as Gatekeeper, in plain words", () => {
     for (const p of [rulesPrompt, gatePrompt, loosenPrompt]) expect(p).toContain("Never say Claude, AI, the agent or the model");
   });
 });
+
+describe("a loosening is never described as done, and the watch week never promises now", () => {
+  it("'actually no 20min' (from 10) says Gatekeeper will ask why, not that Video is now 20", async () => {
+    mockAnthropic({ answer: { reply: "Video is now limited to 20 minutes a day, replacing the 10-minute limit.", question: null, diff: [{ op: "budget", kind: "video", minutes: 20 }] } });
+    const out = (await (await post("/rules", chat("actually no 20min"))).json()) as any;
+    expect(out.diff).toEqual([{ op: "budget", kind: "video", minutes: 20 }]);
+    expect(out.reply).toBe("Video: 10 → 20 minutes a day. That gives you more time, so Gatekeeper will ask you why before it changes.");
+  });
+
+  it("'limit youtube and videos to 15min' in the watch week doesn't say it applies now", async () => {
+    mockAnthropic({ answer: { reply: "Video: 15 minutes a day. It applies now.", question: null, diff: [{ op: "budget", kind: "video", minutes: 15 }] } });
+    const out = (await (await post("/rules", chat("limit youtube and videos to 15min", { rules: { ...RULES, kinds: {} }, watching: true }))).json()) as any;
+    expect(out.reply).toBe("Video: 15 minutes a day. This first week Gatekeeper only watches and closes nothing, so your limits start when the week ends.");
+  });
+
+  it("a mixed card says which part waits for Gatekeeper", async () => {
+    mockAnthropic({ answer: { reply: "Done.", question: null, diff: [{ op: "budget", kind: "video", minutes: 20 }, { op: "siteLimit", domain: "reddit.com", minutes: 10 }] } });
+    const out = (await (await post("/rules", chat("20 min of video and limit reddit to 10"))).json()) as any;
+    expect(out.reply).toBe("Video: 10 → 20 minutes a day. That gives you more time, so Gatekeeper will ask you why before it changes. The stricter part applies now.");
+  });
+});

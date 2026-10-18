@@ -56,7 +56,7 @@ describe("a limit on one site", () => {
     const rules = { kinds: {}, sites: {}, siteLimits: { "lequipe.fr": 15 }, videos: [], dayStart: 4 };
     const thirty = { reply: "lequipe.fr: 30 minutes a day.", question: null, diff: [{ op: "siteLimit", domain: "lequipe.fr", minutes: 30 }] };
     mockAnthropic({ answer: thirty });
-    expect(await (await post("/rules", body({ history, rules, message: "make it 30" }))).json()).toEqual(thirty);
+    expect(await (await post("/rules", body({ history, rules, message: "make it 30" }))).json()).toEqual({ ...thirty, reply: "lequipe.fr: 15 → 30 minutes a day. That gives you more time, so Gatekeeper will ask you why before it changes." });
 
     const examOnly = {
       reply: "lequipe.fr stays open on normal days and closes in exam mode.",
