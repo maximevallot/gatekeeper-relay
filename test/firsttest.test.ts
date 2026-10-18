@@ -80,3 +80,17 @@ describe("exam mode: a no on the rules doesn't block it, and a stuck student get
     expect(rulesPrompt).toContain("MIT's Canvas is canvas.mit.edu");
   });
 });
+
+describe("the gate in exam mode never sends someone off without a way", () => {
+  it("tells the model to name the study site's address or give a short pass (search.brave.com, 'mit canvas')", async () => {
+    expect(gatePrompt).toContain("Never send them off without a way.");
+    expect(gatePrompt).toContain("MIT's Canvas is canvas.mit.edu");
+    const answer = { decision: "allow", minutes: 2, reply: "MIT's Canvas is canvas.mit.edu. Two minutes to get there." };
+    const calls = mockAnthropic({ answer });
+    const out = await (await post("/gate", gateBody({
+      site: "search.brave.com", kind: "other", message: "I'm looking for mit canvas", exam: { until: "2026-10-23T12:00:00-04:00", goal: "Midterm" },
+    }))).json();
+    expect(out).toEqual(answer);
+    expect(calls[0]!.body.messages[0].content).toContain("site: search.brave.com");
+  });
+});
