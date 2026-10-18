@@ -1,12 +1,12 @@
 import rulesPrompt from "../prompts/rules.md";
 import { askClaude } from "./claude";
 import type { Env } from "./env";
-import { BadRequest, domain, KINDS, type Kind, type RulesInput, VIDEO_SITES } from "./validate";
+import { BadRequest, domain, isLimitable, isLocalTime, LIMITABLE, type Limitable, type RulesInput, VIDEO_SITES } from "./validate";
 
 export type Op =
-  | { op: "budget"; kind: Kind; minutes: number }
-  | { op: "unwatch"; kind: Kind }
-  | { op: "site"; domain: string; kind: Kind }
+  | { op: "budget"; kind: Limitable; minutes: number }
+  | { op: "unwatch"; kind: Limitable }
+  | { op: "site"; domain: string; kind: Limitable }
   | { op: "unsite"; domain: string }
   | {
       op: "addVideo";
@@ -18,7 +18,9 @@ export type Op =
     }
   | { op: "videoBudget"; id: string; minutes: number | null }
   | { op: "dropVideo"; id: string }
-  | { op: "dayStart"; hour: number };
+  | { op: "dayStart"; hour: number }
+  | { op: "examStart"; until: string; goal: string }
+  | { op: "examEnd" };
 
 export interface RulesResult {
   reply: string;
@@ -27,7 +29,7 @@ export interface RulesResult {
 }
 
 const MAX_OPS = 10;
-const kind = { type: "string", enum: [...KINDS] };
+const kind = { type: "string", enum: [...LIMITABLE] };
 const nullableInt = { anyOf: [{ type: "integer" }, { type: "null" }] };
 const obj = (op: string, props: Record<string, unknown>) => ({
   type: "object",
@@ -64,6 +66,8 @@ const SCHEMA = {
           obj("videoBudget", { id: { type: "string" }, minutes: nullableInt }),
           obj("dropVideo", { id: { type: "string" } }),
           obj("dayStart", { hour: { type: "integer" } }),
+          obj("examStart", { until: { type: "string" }, goal: { type: "string" } }),
+          obj("examEnd", {}),
         ],
       },
     },
@@ -88,13 +92,17 @@ export function rulesUserMessage(input: RulesInput): string {
     (v) => `  - ${v.id} on ${v.site}: about "${v.about}"${v.except ? `, except "${v.except}"` : ""}, ${minutesText(v.minutes)}`,
   );
   const history = input.history.map((h) => `${h.role === "user" ? "student" : "gatekeeper"}: ${h.text.replace(/<\/?message>/gi, "")}`);
+  const exam = input.exam
+    ? `on until ${input.exam.until}${input.exam.goal ? `, for "${input.exam.goal}"` : ""}`
+    : "off";
   return [
-    `today: ${input.today}`,
+    input.now ? `now: ${input.now}` : `today: ${input.today}`,
     "rules now:",
     `- watched kinds: ${kinds.length ? kinds.join(", ") : "none"} (kinds not listed have no limit)`,
     `- the student's own sites: ${sites.length ? sites.join(", ") : "none"}`,
     `- video rules:${videos.length ? "\n" + videos.join("\n") : " none"}`,
     `- the day starts at ${r.dayStart}:00`,
+    `- exam mode: ${exam}`,
     "",
     `conversation so far:${history.length ? "\n" + history.join("\n") : " none"}`,
     "",
@@ -107,7 +115,7 @@ const clampMinutes = (v: unknown) =>
   typeof v === "number" && Number.isFinite(v) ? Math.min(Math.max(Math.round(v), 0), 1440) : null;
 const words = (v: unknown) =>
   Array.isArray(v) ? [...new Set(v.map((w) => cut(w, 40).toLowerCase()).filter(Boolean))].slice(0, 20) : [];
-const isKind = (k: unknown): k is Kind => typeof k === "string" && (KINDS as readonly string[]).includes(k);
+const MAX_EXAM_MS = 30 * 24 * 60 * 60 * 1000;
 
 function cleanDomain(raw: unknown): string | null {
   try {
@@ -118,20 +126,33 @@ function cleanDomain(raw: unknown): string | null {
   }
 }
 
+/**
+ * An exam end time must be a local time with an offset, after now, at most 30 days ahead, and,
+ * while exam mode is on, no earlier than its current end: shortening is ending early, which is examEnd.
+ */
+function examUntil(v: unknown, input: RulesInput): string | null {
+  if (!isLocalTime(v)) return null;
+  const t = Date.parse(v);
+  const now = input.now ? Date.parse(input.now) : Date.now();
+  if (t <= now || t - now > MAX_EXAM_MS) return null;
+  if (input.exam && t < Date.parse(input.exam.until)) return null;
+  return v;
+}
+
 /** One operation as the model wrote it, checked and clamped, or null if it cannot stand. */
-function cleanOp(raw: unknown, videoIds: Set<string>): Op | null {
+function cleanOp(raw: unknown, videoIds: Set<string>, input: RulesInput): Op | null {
   if (typeof raw !== "object" || raw === null) return null;
   const o = raw as Record<string, unknown>;
   switch (o.op) {
     case "budget": {
       const m = clampMinutes(o.minutes);
-      return isKind(o.kind) && m !== null ? { op: "budget", kind: o.kind, minutes: m } : null;
+      return isLimitable(o.kind) && m !== null ? { op: "budget", kind: o.kind, minutes: m } : null;
     }
     case "unwatch":
-      return isKind(o.kind) ? { op: "unwatch", kind: o.kind } : null;
+      return isLimitable(o.kind) ? { op: "unwatch", kind: o.kind } : null;
     case "site": {
       const d = cleanDomain(o.domain);
-      return d && isKind(o.kind) ? { op: "site", domain: d, kind: o.kind } : null;
+      return d && isLimitable(o.kind) ? { op: "site", domain: d, kind: o.kind } : null;
     }
     case "unsite": {
       const d = cleanDomain(o.domain);
@@ -157,13 +178,20 @@ function cleanOp(raw: unknown, videoIds: Set<string>): Op | null {
       const h = o.hour;
       return typeof h === "number" && Number.isInteger(h) && h >= 0 && h <= 23 ? { op: "dayStart", hour: h } : null;
     }
+    case "examStart": {
+      const until = examUntil(o.until, input);
+      return until ? { op: "examStart", until, goal: cut(o.goal, 300) } : null;
+    }
+    case "examEnd":
+      return input.exam ? { op: "examEnd" } : null;
     default:
       return null;
   }
 }
 
 /**
- * Whatever the model returns, the server has the last word: known kinds only, minutes from 0 to 1440,
+ * Whatever the model returns, the server has the last word: the five limitable kinds only, minutes from 0 to 1440,
+ * exam times that make sense, examEnd only while exam mode is on,
  * video rules only on supported sites and only for ids the student has, at most ten operations, short
  * text, and a question replaces any change. The extension checks it all again before showing a card.
  */
@@ -176,8 +204,10 @@ export function enforceRules(data: unknown, input: RulesInput): RulesResult {
   const ids = new Set(input.rules.videos.map((v) => v.id));
   const diff = (Array.isArray(d.diff) ? d.diff : [])
     .slice(0, MAX_OPS)
-    .map((op) => cleanOp(op, ids))
-    .filter((op): op is Op => op !== null);
+    .map((op) => cleanOp(op, ids, input))
+    .filter((op): op is Op => op !== null)
+    // One exam change per card: starting and ending in the same breath makes no sense.
+    .filter((op, i, all) => !op.op.startsWith("exam") || all.findIndex((o) => o.op.startsWith("exam")) === i);
   if (!reply && !diff.length) return FALLBACK;
   return { reply: reply || "Here is the change.", question: null, diff };
 }

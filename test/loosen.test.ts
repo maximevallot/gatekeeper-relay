@@ -18,7 +18,7 @@ describe("POST /loosen", () => {
     const calls = mockAnthropic({ answer: { decision: "allow", reply: "OK: 45 minutes of video a day from tomorrow morning." } });
     const res = await post("/loosen", body());
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ decision: "allow", reply: "OK: 45 minutes of video a day from tomorrow morning." });
+    expect(await res.json()).toEqual({ decision: "allow", when: "morning", reply: "OK: 45 minutes of video a day from tomorrow morning." });
     expect(calls).toHaveLength(1);
     expect(calls[0]!.body.system).toBe(loosenPrompt);
     const content = calls[0]!.body.messages[0].content as string;
@@ -32,7 +32,7 @@ describe("POST /loosen", () => {
   it("never asks twice: a question after an earlier one counts as no", async () => {
     mockAnthropic({ answer: { decision: "ask", reply: "What changed?" } });
     const res = await post("/loosen", body({ asked: "What changed: a new course?", message: "stuff" }));
-    expect(await res.json()).toEqual({ decision: "deny", reply: "What changed?" });
+    expect(await res.json()).toEqual({ decision: "deny", when: null, reply: "What changed?" });
   });
 
   it("keeps the reason inside its tags, and treats a refusal or junk as no", async () => {

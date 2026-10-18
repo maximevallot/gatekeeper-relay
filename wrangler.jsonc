@@ -17,6 +17,8 @@
     "GLOBAL_DAILY_TOKENS": "3000000",
     // The longest pass the gate may grant, whatever the model says.
     "MAX_PASS_MINUTES": "10",
+    // The longest pass in exam mode, which the gate gives only for a page that serves the exam.
+    "MAX_EXAM_PASS_MINUTES": "5",
     // Rules chat messages per install per UTC day (each about 2,000 tokens, inside the install's shared caps).
     "MAX_RULES_PER_INSTALL": "20",
     // Videos judged per install per UTC day (about 600 tokens each), an allowance of their own.

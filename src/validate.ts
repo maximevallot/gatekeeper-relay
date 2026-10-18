@@ -1,6 +1,14 @@
 export const KINDS = ["social", "video", "games", "news", "shopping", "work", "study", "other"] as const;
 export type Kind = (typeof KINDS)[number];
 
+/**
+ * The kinds the extension can limit. /sort may still answer work, study or other, which mean
+ * "not limitable"; the rules chat may only budget, unwatch or place a site into these five.
+ */
+export const LIMITABLE = ["social", "video", "games", "news", "shopping"] as const;
+export type Limitable = (typeof LIMITABLE)[number];
+export const isLimitable = (k: unknown): k is Limitable => typeof k === "string" && (LIMITABLE as readonly string[]).includes(k);
+
 /** The extension makes its installId with crypto.randomUUID() on first run. */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const HOSTNAME = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9-]{2,63}$/;
@@ -38,6 +46,36 @@ function minutes(body: Obj, key: string): number {
   return Math.round(v);
 }
 
+/** Local time with its offset, as the extension sends it: "2026-10-17T14:05:00-04:00". */
+const LOCAL_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/;
+
+export function isLocalTime(v: unknown): v is string {
+  return typeof v === "string" && LOCAL_TIME.test(v) && !Number.isNaN(Date.parse(v));
+}
+
+export interface Exam {
+  until: string;
+  goal: string;
+}
+
+/** `now`, optional: the student's local time with its offset. */
+function now(body: Obj): string | null {
+  const v = body.now;
+  if (v === undefined || v === null) return null;
+  if (!isLocalTime(v)) throw new BadRequest("invalid_now");
+  return v;
+}
+
+/** `exam`, optional: {until, goal} while exam mode is on, null or absent when it is off. */
+function exam(body: Obj): Exam | null {
+  const v = body.exam;
+  if (v === undefined || v === null) return null;
+  if (!isObject(v) || !isLocalTime(v.until)) throw new BadRequest("invalid_exam");
+  const goal = v.goal ?? "";
+  if (typeof goal !== "string" || goal.length > 300) throw new BadRequest("invalid_exam");
+  return { until: v.until, goal: goal.replace(/\s+/g, " ").trim() };
+}
+
 /** Lowercases, drops a scheme, path, port and leading "www.", and checks what is left is a hostname. */
 export function domain(raw: unknown, key = "domain"): string {
   if (typeof raw !== "string") throw new BadRequest(`invalid_${key}`);
@@ -57,6 +95,8 @@ export interface GateInput {
   budget: number;
   deadlines: string[];
   message: string;
+  now: string | null;
+  exam: Exam | null;
 }
 
 export function gateInput(body: Obj): GateInput {
@@ -82,6 +122,8 @@ export function gateInput(body: Obj): GateInput {
     budget: minutes(body, "budget"),
     deadlines,
     message: str(body, "message", 500, true),
+    now: now(body),
+    exam: exam(body),
   };
 }
 
@@ -179,6 +221,8 @@ export interface RulesInput {
   today: string;
   history: Turn[];
   rules: RulesState;
+  now: string | null;
+  exam: Exam | null;
 }
 
 function ruleMinutes(v: unknown): number {
@@ -229,6 +273,8 @@ export function rulesInput(body: Obj): RulesInput {
     today,
     history,
     rules: rulesState(body.rules),
+    now: now(body),
+    exam: exam(body),
   };
 }
 
@@ -241,6 +287,8 @@ export interface LoosenInput {
   /** The one question asked earlier about this request, if any. */
   asked: string;
   message: string;
+  now: string | null;
+  exam: Exam | null;
 }
 
 /** A request to loosen a rule or end exam mode early, with the student's reason. */
@@ -257,5 +305,7 @@ export function loosenInput(body: Obj): LoosenInput {
     changes,
     asked: plain(body.asked, "asked", 300, false),
     message: str(body, "message", 500, true),
+    now: now(body),
+    exam: exam(body),
   };
 }

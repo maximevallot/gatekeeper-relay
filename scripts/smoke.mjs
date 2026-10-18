@@ -100,11 +100,17 @@ try {
   });
   check("rules turns the example into two video rules", r.status === 200 && r.body.diff?.length === 2 && r.body.diff[0].minutes === 0 && r.body.diff[1].minutes === null, r);
 
-    r = await post("/gate", gate("x"), { Origin: "https://evil.example" });
+  r = await post("/gate", {
+    ...gate("I need the lecture 6 recording for the midterm"), installId: crypto.randomUUID(),
+    now: "2026-10-17T14:05:00-04:00", exam: { until: "2026-10-21T08:30:00-04:00", goal: "Midterm 15.425" },
+  });
+  check("gate in exam mode caps a pass at 5 minutes", r.status === 200 && r.body.decision === "allow" && r.body.minutes === 5, r);
+
+  r = await post("/gate", gate("x"), { Origin: "https://evil.example" });
   check("a web page origin is refused", r.status === 403, r);
 
   const upstream = mock.requests;
-  check("every upstream call used the key, Haiku 5.5 and a JSON schema", upstream.length === 6 && upstream.every(
+  check("every upstream call used the key, Haiku 5.5 and a JSON schema", upstream.length === 7 && upstream.every(
     (q) => q.key === KEY && q.body.model === "claude-haiku-5-5" && q.body.output_config?.format?.type === "json_schema",
   ), upstream.map((q) => ({ key: q.key, model: q.body.model })));
 } catch (err) {

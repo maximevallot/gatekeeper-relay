@@ -50,6 +50,7 @@ describe("POST /rules", () => {
         "- the student's own sites: openfront.io counted as games",
         "- video rules:\n  - v1 on youtube.com: about \"music videos\", 30 min a day",
         "- the day starts at 4:00",
+        "- exam mode: off",
         "",
         "conversation so far: none",
         "",

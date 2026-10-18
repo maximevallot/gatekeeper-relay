@@ -11,6 +11,8 @@ export interface Env {
   MAX_CALLS_PER_IP: string;
   GLOBAL_DAILY_TOKENS: string;
   MAX_PASS_MINUTES: string;
+  /** The longest pass in exam mode, and only for a page that serves the exam. */
+  MAX_EXAM_PASS_MINUTES: string;
   /** Rules chat messages per install per UTC day; they also count against the install's shared caps. */
   MAX_RULES_PER_INSTALL: string;
   /** Videos judged per install per UTC day; these have their own allowance, outside the shared caps. */
