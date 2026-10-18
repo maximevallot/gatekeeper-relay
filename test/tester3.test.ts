@@ -85,3 +85,26 @@ describe("/judge in exam mode: is this video about the exam's subject?", () => {
     expect(judgePrompt).toContain("Be strict on entertainment");
   });
 });
+
+describe("the exam as a rule with id \"exam\" (the extension's form)", () => {
+  const judge = (extra: Record<string, unknown> = {}) => ({
+    installId: crypto.randomUUID(), site: "youtube.com", title: "Econometrics Lecture 5: Multiple Regression", channel: "MIT OpenCourseWare",
+    rules: [{ id: "exam", about: "stats exam", except: "" }], ...extra,
+  });
+
+  it("answers an on-topic video as rule 'exam', and an off-topic one as none", async () => {
+    const calls = mockAnthropic({ answer: { rule: "none", forExam: true } });
+    expect(await (await post("/judge", judge())).json()).toEqual({ rule: "exam", judged: true, forExam: true });
+    const user: string = calls[0]!.body.messages[0].content;
+    expect(user).toContain('exam mode: on, for "stats exam"');
+    expect(user).toContain("rules: none"); // the exam rule is not one of the student's video rules
+    mockAnthropic({ answer: { rule: "none", forExam: false } });
+    expect(await (await post("/judge", judge({ title: "Top 10 penalty kicks of 2026", channel: "Sky Sports" }))).json()).toEqual({ rule: null, judged: true, forExam: false });
+  });
+
+  it("keeps the student's own video rules beside it", async () => {
+    mockAnthropic({ answer: { rule: "v1", forExam: false } });
+    const rules = [{ id: "exam", about: "stats exam", except: "" }, { id: "v1", about: "sports highlights", except: "" }];
+    expect(await (await post("/judge", judge({ rules, title: "Top 10 penalty kicks" }))).json()).toEqual({ rule: "v1", judged: true, forExam: false });
+  });
+});

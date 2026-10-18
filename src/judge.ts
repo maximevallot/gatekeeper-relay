@@ -27,7 +27,7 @@ export function judgeUserMessage(input: JudgeInput): string {
     .join("\n");
   return [
     `site: ${input.site}`,
-    `exam mode: ${input.exam ? `on, for "${strip(input.exam.goal) || "an exam"}"` : "off"}`,
+    `exam mode: ${input.examGoal !== null ? `on, for "${strip(input.examGoal) || "an exam"}"` : "off"}`,
     `rules:${rules ? "\n" + rules : " none"}`,
     "",
     `<title>${strip(input.title)}</title>`,
@@ -38,7 +38,9 @@ export function judgeUserMessage(input: JudgeInput): string {
 /** The answer must name one of the rules sent, or none. Anything else is not a judgment. */
 export function enforceJudgment(data: unknown, input: JudgeInput): JudgeResult {
   const d = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
-  const forExam = input.exam && typeof d.forExam === "boolean" ? d.forExam : null;
+  const forExam = input.examGoal !== null && typeof d.forExam === "boolean" ? d.forExam : null;
+  // The exam sent as a rule: an on-topic video is answered as that rule, as the extension reads it.
+  if (input.examRule && forExam) return { rule: "exam", judged: true, forExam };
   if (d.rule === "none") return { rule: null, judged: true, forExam };
   if (typeof d.rule === "string" && input.rules.some((r) => r.id === d.rule)) return { rule: d.rule, judged: true, forExam };
   return { rule: null, judged: false, forExam };

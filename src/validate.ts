@@ -174,8 +174,13 @@ export interface JudgeInput {
   title: string;
   channel: string;
   rules: VideoRuleText[];
-  /** Exam mode, if on: the video is also judged against the exam's subject (forExam). */
-  exam: Exam | null;
+  /**
+   * Exam mode, if on: what the exam is for, so the video is also judged against its subject (forExam). It
+   * comes as `exam: {until, goal}`, or as the extension sends it, a rule `{ id: "exam", about: <goal> }`.
+   */
+  examGoal: string | null;
+  /** The exam came as a rule with id "exam": an on-topic video is answered as rule "exam". */
+  examRule: boolean;
 }
 
 function plain(v: unknown, key: string, max: number, required: boolean): string {
@@ -203,17 +208,21 @@ function videoRuleTexts(raw: unknown, max: number): VideoRuleText[] {
 export function judgeInput(body: Obj): JudgeInput {
   const site = domain(body.site, "site");
   if (!(VIDEO_SITES as readonly string[]).includes(site)) throw new BadRequest("invalid_site");
-  const rules = videoRuleTexts(body.rules ?? [], 20);
+  const raw = Array.isArray(body.rules) ? body.rules : body.rules ?? [];
+  const asRule = Array.isArray(raw) ? raw.find((r) => isObject(r) && r.id === "exam") : undefined;
+  const rules = videoRuleTexts(Array.isArray(raw) ? raw.filter((r) => r !== asRule) : raw, 20);
   const ex = exam(body);
+  const examGoal = asRule ? plain((asRule as Obj).about, "about", 200, true) : ex ? ex.goal || "an exam" : null;
   // In exam mode a video is judged against the exam even with no video rules.
-  if (!rules.length && !ex) throw new BadRequest("invalid_rules");
+  if (!rules.length && examGoal === null) throw new BadRequest("invalid_rules");
   return {
     installId: installId(body),
     site,
     title: plain(body.title, "title", 200, true),
     channel: plain(body.channel, "channel", 100, false),
     rules,
-    exam: ex,
+    examGoal,
+    examRule: !!asRule,
   };
 }
 
