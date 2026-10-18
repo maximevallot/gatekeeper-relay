@@ -43,9 +43,9 @@ describe("a loosening is never described as done, and replies promise no timing"
     expect(out.reply).toBe("Video: 10 → 20 minutes a day.");
   });
 
-  it("'limit youtube and videos to 15min' in the watch week doesn't say it applies now", async () => {
+  it("'limit youtube and videos to 15min' doesn't say it applies now: a rule set in the watch week ends it, and the card says when", async () => {
     mockAnthropic({ answer: { reply: "Video: 15 minutes a day. It applies now.", question: null, diff: [{ op: "budget", kind: "video", minutes: 15 }] } });
-    const out = (await (await post("/rules", chat("limit youtube and videos to 15min", { rules: { ...RULES, kinds: {} }, watching: true }))).json()) as any;
+    const out = (await (await post("/rules", chat("limit youtube and videos to 15min", { rules: { ...RULES, kinds: {} } }))).json()) as any;
     expect(out.reply).toBe("Video: 15 minutes a day."); // the card says when it applies
   });
 

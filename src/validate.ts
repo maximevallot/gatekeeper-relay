@@ -241,8 +241,6 @@ export interface RulesInput {
   exam: Exam | null;
   /** An earlier no holds every loosening until the morning (QA round 3, N1). */
   loosenLocked: boolean;
-  /** The first week: Gatekeeper only watches and closes nothing (the extension sends `watching: true`). */
-  watching: boolean;
 }
 
 function ruleMinutes(v: unknown): number {
@@ -303,7 +301,6 @@ export function rulesInput(body: Obj): RulesInput {
     now: now(body),
     exam: exam(body),
     loosenLocked: body.loosenLocked === true,
-    watching: body.watching === true || body.watch === true,
   };
 }
 

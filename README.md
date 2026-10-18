@@ -79,7 +79,6 @@ The rules chat on the extension's rules page: the student's words in, a list of 
 ```
 
 - Operations: `budget` {kind, minutes}, `unwatch` {kind}, `site` {domain, kind}, `unsite` {domain}, `addVideo`, `videoBudget` {id, minutes}, `dropVideo` {id}, `dayStart` {hour}, `examStart` {until, goal}, `examEnd` {}, `siteLimit` {domain, minutes}, `dropSiteLimit` {domain}. A video rule's `minutes` is 0 (closed), a number (its own daily minutes) or `null` (free).
-- `watching: true` (optional) says the watch week is on.
 - Replies promise no timing; the card says when each part applies. A card that gives more time gets its reply from the changes themselves ("Video: 10 → 20 minutes a day."), never "Video is now 20"; otherwise the model's words stay, without sentences about timing.
 - `study` {domain} and `unstudy` {domain} mark a site as a study site, which stays open in exam mode; the rules carry `study: [...]`. In exam mode the chat never leaves a dead end: it marks the site as study or points to the gate. Every reply speaks as Gatekeeper and never says Claude or the agent ([src/voice.ts](src/voice.ts)).
 - `loosenLocked: true` (optional) says an earlier no holds every loosening until the morning. The relay then drops every change to the rules that would give more time (ending exam mode early is not held by it) and replies "I said no to a loosening today, so that waits: ask again after 4:00." (QA round 3, N1).
