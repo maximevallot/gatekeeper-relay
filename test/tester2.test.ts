@@ -52,3 +52,39 @@ describe("no reply claims a change the diff doesn't carry", () => {
     expect(rulesPrompt).toContain('"Less social media" with Social media at 15 is `budget` social 10 in `diff`, not only words.');
   });
 });
+
+describe("'are you connected to my calendar now?' is answered from the calendar's status, never its events", () => {
+  const ask = (calendar?: unknown) => chat("are you connected to my calendar now?", calendar === undefined ? {} : { calendar });
+
+  it("tells the model the status, and never sends events or the link", async () => {
+    for (const [calendar, line] of [
+      [{ status: "connected", readAt: "2026-10-18T08:00:00-04:00" }, "- calendar link: connected, last read 2026-10-18T08:00:00-04:00; its events are not sent to this chat"],
+      [{ status: "failed", readAt: null }, "- calendar link: pasted, but the last time it was read it failed"],
+      [{ status: "none", readAt: null }, "- calendar link: none pasted"],
+      [undefined, "- calendar link: not known to this chat"],
+    ] as const) {
+      const calls = mockAnthropic({ answer: { reply: "OK.", question: null, diff: [] } });
+      expect((await post("/rules", ask(calendar))).status).toBe(200);
+      expect(calls[0]!.body.messages[0].content).toContain(line);
+    }
+  });
+
+  it("drops anything but the status: no events, no link", async () => {
+    const calls = mockAnthropic({ answer: { reply: "OK.", question: null, diff: [] } });
+    await post("/rules", ask({ status: "connected", readAt: null, url: "https://canvas.mit.edu/feeds/secret.ics", events: [{ title: "Midterm", start: 1 }] }));
+    const user: string = calls[0]!.body.messages[0].content;
+    expect(user).not.toContain("secret.ics");
+    expect(user).not.toContain("Midterm");
+  });
+
+  it("rejects a malformed status", async () => {
+    mockAnthropic();
+    expect((await post("/rules", ask({ status: "yes" }))).status).toBe(400);
+    expect((await post("/rules", ask({ status: "connected", readAt: "this morning" }))).status).toBe(400);
+  });
+
+  it("tells the model where a calendar is added, and never to say Gatekeeper can't use one", () => {
+    expect(rulesPrompt).toContain("Rules › Calendar (a link ending in .ics");
+    expect(rulesPrompt).toContain("Never say Gatekeeper can't use a calendar at all.");
+  });
+});

@@ -241,6 +241,8 @@ export interface RulesInput {
   exam: Exam | null;
   /** An earlier no holds every loosening until the morning (QA round 3, N1). */
   loosenLocked: boolean;
+  /** Whether a calendar link is connected, and when it was last read. Never its events or its link. */
+  calendar: { status: "connected" | "failed" | "none"; readAt: string | null } | null;
 }
 
 function ruleMinutes(v: unknown): number {
@@ -283,6 +285,14 @@ function rulesState(raw: unknown): RulesState {
   return { kinds, sites, siteLimits, study, videos, dayStart: ds };
 }
 
+function calendarStatus(v: unknown): RulesInput["calendar"] {
+  if (v === undefined || v === null) return null;
+  if (!isObject(v) || (v.status !== "connected" && v.status !== "failed" && v.status !== "none")) throw new BadRequest("invalid_calendar");
+  const readAt = v.readAt === undefined || v.readAt === null ? null : v.readAt;
+  if (readAt !== null && !isLocalTime(readAt)) throw new BadRequest("invalid_calendar");
+  return { status: v.status, readAt };
+}
+
 export function rulesInput(body: Obj): RulesInput {
   const today = body.today;
   if (typeof today !== "string" || !DAY.test(today)) throw new BadRequest("invalid_today");
@@ -301,6 +311,7 @@ export function rulesInput(body: Obj): RulesInput {
     now: now(body),
     exam: exam(body),
     loosenLocked: body.loosenLocked === true,
+    calendar: calendarStatus(body.calendar),
   };
 }
 

@@ -57,6 +57,7 @@ describe("POST /rules", () => {
         "- video rules:\n  - v1 on youtube.com: about \"music videos\", 30 min a day",
         "- the day starts at 4:00",
         "- exam mode: off",
+        "- calendar link: not known to this chat",
         "",
         "conversation so far: none",
         "",

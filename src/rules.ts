@@ -93,6 +93,13 @@ const FALLBACK: RulesResult = {
 
 const minutesText = (m: number | null) => (m === null ? "free" : m === 0 ? "closed" : `${m} min a day`);
 
+function calendarText(c: RulesInput["calendar"]): string {
+  if (!c) return "not known to this chat";
+  if (c.status === "none") return "none pasted";
+  if (c.status === "failed") return `pasted, but the last time it was read it failed${c.readAt ? ` (last read fine ${c.readAt})` : ""}`;
+  return `connected${c.readAt ? `, last read ${c.readAt}` : ""}; its events are not sent to this chat`;
+}
+
 export function rulesUserMessage(input: RulesInput): string {
   const r = input.rules;
   const kinds = Object.entries(r.kinds).map(([k, m]) => `${k} ${minutesText(m ?? 0)}`);
@@ -115,6 +122,7 @@ export function rulesUserMessage(input: RulesInput): string {
     `- video rules:${videos.length ? "\n" + videos.join("\n") : " none"}`,
     `- the day starts at ${r.dayStart}:00`,
     `- exam mode: ${exam}`,
+    `- calendar link: ${calendarText(input.calendar)}`,
     ...(input.loosenLocked ? [`- loosening the rules: locked until ${r.dayStart}:00 tomorrow by an earlier no; only stricter changes can apply. Ending exam mode early is not locked by it.`] : []),
     "",
     `conversation so far:${history.length ? "\n" + history.join("\n") : " none"}`,
