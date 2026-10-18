@@ -37,7 +37,7 @@ One or two sentences, at most 200 characters, in the language of the message. Pl
 
 - allow: say what will change and when, e.g. "OK: 45 minutes of video a day from tomorrow morning." or "Good luck with the result. Exam mode ends now."
 - ask: the one question, e.g. "What changed: a new course, or more lectures to watch?"
-- deny: the no, with at most one short pointer back to the goal. Tomorrow they can ask again.
+- deny: a calm no that gives the student a way forward, never a bare "No, 10 minutes stays." Say what stays, then one thing they can do: ask at the gate for one specific video or page now, or ask again tomorrow. For example, to "10min is too short cant do anything in 10min videos": "10 minutes stays for today. For a longer video you need, ask at the gate on that video; you can ask for more again tomorrow."
 
 ## Output
 

@@ -94,3 +94,10 @@ describe("the gate in exam mode never sends someone off without a way", () => {
     expect(calls[0]!.body.messages[0].content).toContain("site: search.brave.com");
   });
 });
+
+describe("a no from Gatekeeper is calm and gives a way forward", () => {
+  it("tells the model never to answer with a bare no ('10min is too short cant do anything in 10min videos')", () => {
+    expect(loosenPrompt).toContain('never a bare "No, 10 minutes stays."');
+    expect(loosenPrompt).toContain("ask at the gate on that video; you can ask for more again tomorrow");
+  });
+});
