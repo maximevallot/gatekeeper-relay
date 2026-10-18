@@ -1,6 +1,7 @@
 import rulesPrompt from "../prompts/rules.md";
 import { askClaude } from "./claude";
 import type { Env } from "./env";
+import { voice } from "./voice";
 import { BadRequest, domain, examText, isLimitable, isLocalTime, LIMITABLE, type Limitable, type RulesInput, VIDEO_SITES } from "./validate";
 
 export type Op =
@@ -221,7 +222,7 @@ function cleanOp(raw: unknown, videoIds: Set<string>, input: RulesInput): Op | n
 export function enforceRules(data: unknown, input: RulesInput): RulesResult {
   if (typeof data !== "object" || data === null) return FALLBACK;
   const d = data as Record<string, unknown>;
-  const reply = cut(d.reply, 500);
+  const reply = cut(typeof d.reply === "string" ? voice(d.reply) : d.reply, 500);
   const question = cut(d.question, 300) || null;
   if (question) return { reply, question, diff: [] };
   const ids = new Set(input.rules.videos.map((v) => v.id));

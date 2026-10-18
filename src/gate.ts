@@ -1,6 +1,7 @@
 import gatePrompt from "../prompts/gate.md";
 import { askClaude } from "./claude";
 import { type Env, intVar } from "./env";
+import { voice } from "./voice";
 import { examText, type GateInput } from "./validate";
 
 export type Decision = "allow" | "deny" | "ask";
@@ -52,7 +53,7 @@ export function enforce(data: unknown, maxPass: number): GateResult {
   const d = data as Record<string, unknown>;
   const decision = d.decision;
   if (decision !== "allow" && decision !== "deny" && decision !== "ask") return FALLBACK;
-  const reply = typeof d.reply === "string" ? d.reply.trim().slice(0, 280) : "";
+  const reply = typeof d.reply === "string" ? voice(d.reply.trim()).slice(0, 280) : "";
   if (!reply) return FALLBACK;
   if (decision !== "allow") return { decision, minutes: 0, reply };
   const raw = typeof d.minutes === "number" && Number.isFinite(d.minutes) ? Math.round(d.minutes) : 0;
