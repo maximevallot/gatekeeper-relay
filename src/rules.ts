@@ -8,6 +8,8 @@ export type Op =
   | { op: "unwatch"; kind: Limitable }
   | { op: "site"; domain: string; kind: Limitable }
   | { op: "unsite"; domain: string }
+  | { op: "siteBudget"; domain: string; minutes: number }
+  | { op: "dropSite"; domain: string }
   | {
       op: "addVideo";
       site: string;
@@ -51,6 +53,8 @@ const SCHEMA = {
           obj("unwatch", { kind }),
           obj("site", { domain: { type: "string" }, kind }),
           obj("unsite", { domain: { type: "string" } }),
+          obj("siteBudget", { domain: { type: "string" }, minutes: { type: "integer" } }),
+          obj("dropSite", { domain: { type: "string" } }),
           obj("addVideo", {
             site: { type: "string", enum: [...VIDEO_SITES] },
             about: { type: "string" },
@@ -88,6 +92,7 @@ export function rulesUserMessage(input: RulesInput): string {
   const r = input.rules;
   const kinds = Object.entries(r.kinds).map(([k, m]) => `${k} ${minutesText(m ?? 0)}`);
   const sites = Object.entries(r.sites).map(([d, k]) => `${d} counted as ${k}`);
+  const siteBudgets = Object.entries(r.siteBudgets).map(([d, m]) => `${d} ${minutesText(m)}`);
   const videos = r.videos.map(
     (v) => `  - ${v.id} on ${v.site}: about "${v.about}"${v.except ? `, except "${v.except}"` : ""}, ${minutesText(v.minutes)}`,
   );
@@ -100,6 +105,7 @@ export function rulesUserMessage(input: RulesInput): string {
     "rules now:",
     `- watched kinds: ${kinds.length ? kinds.join(", ") : "none"} (kinds not listed have no limit)`,
     `- the student's own sites: ${sites.length ? sites.join(", ") : "none"}`,
+    `- sites with their own limit: ${siteBudgets.length ? siteBudgets.join(", ") : "none"}`,
     `- video rules:${videos.length ? "\n" + videos.join("\n") : " none"}`,
     `- the day starts at ${r.dayStart}:00`,
     `- exam mode: ${exam}`,
@@ -157,6 +163,15 @@ function cleanOp(raw: unknown, videoIds: Set<string>, input: RulesInput): Op | n
     case "unsite": {
       const d = cleanDomain(o.domain);
       return d ? { op: "unsite", domain: d } : null;
+    }
+    case "siteBudget": {
+      const d = cleanDomain(o.domain);
+      const m = clampMinutes(o.minutes);
+      return d && m !== null ? { op: "siteBudget", domain: d, minutes: m } : null;
+    }
+    case "dropSite": {
+      const d = cleanDomain(o.domain);
+      return d && d in input.rules.siteBudgets ? { op: "dropSite", domain: d } : null;
     }
     case "addVideo": {
       const about = cut(o.about, 200);

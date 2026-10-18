@@ -48,6 +48,7 @@ describe("POST /rules", () => {
         "rules now:",
         "- watched kinds: video 20 min a day, games 15 min a day (kinds not listed have no limit)",
         "- the student's own sites: openfront.io counted as games",
+        "- sites with their own limit: none",
         "- video rules:\n  - v1 on youtube.com: about \"music videos\", 30 min a day",
         "- the day starts at 4:00",
         "- exam mode: off",

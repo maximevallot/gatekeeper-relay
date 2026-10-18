@@ -78,10 +78,12 @@ The rules chat on the extension's rules page: the student's words in, a list of 
 → { "reply": "…", "question": null, "diff": [ { "op": "addVideo", "site": "youtube.com", "about": "…", "except": "…", "minutes": null, "words": { "match": […], "except": […] } } ] }
 ```
 
-- Operations: `budget` {kind, minutes}, `unwatch` {kind}, `site` {domain, kind}, `unsite` {domain}, `addVideo`, `videoBudget` {id, minutes}, `dropVideo` {id}, `dayStart` {hour}, `examStart` {until, goal}, `examEnd` {}. A video rule's `minutes` is 0 (closed), a number (its own daily minutes) or `null` (free).
+- Operations: `budget` {kind, minutes}, `unwatch` {kind}, `site` {domain, kind}, `unsite` {domain}, `addVideo`, `videoBudget` {id, minutes}, `dropVideo` {id}, `dayStart` {hour}, `examStart` {until, goal}, `examEnd` {}, `siteBudget` {domain, minutes}, `dropSite` {domain}. A video rule's `minutes` is 0 (closed), a number (its own daily minutes) or `null` (free).
 - `examStart` starts exam mode, or extends it while it is on. `examEnd` asks to end it early; the extension turns it into a loosening request through `/loosen`.
-- "lequipe should be blocked when in exam mode" gets `site` lequipe.fr news, with the reply that exam mode closes news along with every other kind.
-- The server checks every operation (`enforceRules` in [src/rules.ts](src/rules.ts)): the five kinds the extension can limit (social, video, games, news, shopping) and no others, an `examStart` time with an offset, after `now`, at most 30 days ahead and never earlier than the current end, `examEnd` only while exam mode is on, one exam change per card, minutes clamped to 0–1440, video rules only on youtube.com and only for ids the student has, domains normalized, at most 10 operations. A `question` replaces any change. A refusal or junk gets a plain reply and no change.
+- `siteBudget` {domain, minutes} gives one site its own daily minutes, whatever its kind; `dropSite` {domain} removes it. The rules state may carry `siteBudgets: { "lequipe.fr": 15 }`.
+- The chat chooses a stated default rather than asking how to model a rule: "i want to put a limit on the site lequipe" gets `siteBudget` lequipe.fr 15 and the reply "lequipe.fr: 15 minutes a day." It asks only when a request cannot be carried out (an unknown site, exam mode with no end time).
+- "lequipe should be blocked when in exam mode" needs no change: exam mode already closes every site that is not for study.
+- The server checks every operation (`enforceRules` in [src/rules.ts](src/rules.ts)): the five kinds the extension can limit (social, video, games, news, shopping) and no others, an `examStart` time with an offset, after `now`, at most 30 days ahead and never earlier than the current end, `examEnd` only while exam mode is on, one exam change per card, `dropSite` only for a site that has its own limit, minutes clamped to 0–1440, video rules only on youtube.com and only for ids the student has, domains normalized, at most 10 operations. A `question` replaces any change. A refusal or junk gets a plain reply and no change.
 - No usage is sent: no minutes used, no passes.
 - Limits: `message` 1–500 characters, `history` up to 6 turns, up to 100 own sites and 20 video rules; the body may be up to 24 KB (8 KB for the other endpoints).
 
@@ -187,7 +189,7 @@ npm run check
 `npm run check` runs three things, none of which needs a key or an account or touches the network:
 
 1. `npm run typecheck`: TypeScript.
-2. `npm test`: 56 vitest tests inside the Workers runtime (`@cloudflare/vitest-plugin`), with a mocked Anthropic API. They cover the request sent to Claude, the minute clamp, refusals and bad output, upstream failures, installId and field validation, every cap, the sort cache, origins, the rules chat and video judge (their checks on the model output, input validation and allowances), loosening, and exam mode across `/rules`, `/gate` and `/loosen`.
+2. `npm test`: 60 vitest tests inside the Workers runtime (`@cloudflare/vitest-plugin`), with a mocked Anthropic API. They cover the request sent to Claude, the minute clamp, refusals and bad output, upstream failures, installId and field validation, every cap, the sort cache, origins, the rules chat and video judge (their checks on the model output, input validation and allowances), loosening, and exam mode across `/rules`, `/gate` and `/loosen`.
 3. `npm run smoke`: starts the real Worker under `wrangler dev`, points it at a fake Anthropic server on localhost ([scripts/mock-anthropic.mjs](scripts/mock-anthropic.mjs)) and checks both endpoints end to end.
 
 To try it against the real API locally, copy `.dev.vars.example` to `.dev.vars`, put a key in it, and run `npm run dev`. `.dev.vars` is git-ignored.

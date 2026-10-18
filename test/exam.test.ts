@@ -48,11 +48,11 @@ describe("/rules knows exam mode", () => {
     expect(budget.properties.kind.enum).toEqual(["social", "video", "games", "news", "shopping"]);
   });
 
-  it("passes the lequipe card through: lequipe.fr counts as news", async () => {
+  it("passes the lequipe answer through: exam mode already closes it", async () => {
     const answer = {
-      reply: "Exam mode closes news along with every other kind. On normal days news stays free.",
+      reply: "Exam mode already closes lequipe.fr, like every site that isn't for study. Say if you also want a limit on normal days.",
       question: null,
-      diff: [{ op: "site", domain: "lequipe.fr", kind: "news" }],
+      diff: [],
     };
     mockAnthropic({ answer });
     const res = await post("/rules", rulesBody());
