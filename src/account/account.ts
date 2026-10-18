@@ -4,7 +4,7 @@
 
 import { DurableObject } from "cloudflare:workers";
 import type { Env } from "../env";
-import { copyOf, engine, inZone, type State } from "./engine";
+import { copyOf, engine, inZone, todayFor, type State } from "./engine";
 import { merge } from "./merge";
 import { HANDLERS, MAC_ALLOWED } from "./requests";
 import { cleanSpans, countSpans, emptyDay, length, usageSeconds, type DaySpans } from "./spans";
@@ -122,7 +122,8 @@ export class Account extends DurableObject<Env> {
     if (!t || !meta || t.accountId !== meta.accountId) return fail(401, "bad_token");
     const devices = await this.devices();
     const device = devices[t.deviceId];
-    if (!device || device.keyHash !== (await sha256(t.key))) return fail(401, "bad_token");
+    if (!device) return fail(401, "device_removed");
+    if (device.keyHash !== (await sha256(t.key))) return fail(401, "bad_token");
     return { meta, devices, device };
   }
 
@@ -163,7 +164,7 @@ export class Account extends DurableObject<Env> {
     return fail(503, "no_code");
   }
 
-  async join(info: DeviceInfo, tz: string, from: State | null, now: number): Promise<Reply> {
+  async join(info: DeviceInfo, tz: string, from: State | null, now: number, wantToday = false): Promise<Reply> {
     if (await this.ctx.storage.get("deleted")) return fail(410, "account_deleted");
     const meta0 = await this.meta();
     if (!meta0) return fail(404, "bad_code");
@@ -189,6 +190,7 @@ export class Account extends DurableObject<Env> {
     return ok({
       accountId: meta.accountId, device: { id: device.id, token }, copy: copyOf(state), version: m.version, serverNow: now,
       merged: merged ? { rulesDiffer: merged.rulesDiffer, lostRules: merged.lostRules } : { rulesDiffer: false, lostRules: null },
+      ...(wantToday || info.kind === "mac" ? { today: todayFor(state, meta.tz, now) } : {}),
     });
   }
 
@@ -222,9 +224,11 @@ export class Account extends DurableObject<Env> {
       const done = answers.find((x) => x.id === req.id);
       if (done) { results.push({ id: req.id, ...(done.result as object) }); continue; }
       let result: Record<string, unknown>;
-      const handler = HANDLERS[req.type];
+      // "exam.start" is the Mac's name for it in the native-messaging contract.
+      const type = req.type === "exam.start" ? "startExam" : req.type;
+      const handler = HANDLERS[type];
       if (!handler) result = { refused: "unknown_type" };
-      else if (device.kind === "mac" && !MAC_ALLOWED.has(req.type)) result = { refused: "mac_cannot_loosen" };
+      else if (device.kind === "mac" && !MAC_ALLOWED.has(type)) result = { refused: "mac_cannot_loosen" };
       else {
         const out = await handler(state, req, {
           env: this.env, accountId: meta.accountId, tz: meta.tz, now, ip, deviceKind: device.kind,
@@ -246,7 +250,8 @@ export class Account extends DurableObject<Env> {
     if (requests.length) await this.ctx.storage.put("answers", answers.slice(-MAX_ANSWERS));
     const base = { version: meta.version, serverNow: now, spansUpTo: seq };
     if (body.have === meta.version && meta.version === before && !requests.length) return ok({ ...base, unchanged: true });
-    return ok({ ...base, copy: copyOf(state), results });
+    const today = device.kind === "mac" || (Array.isArray(body.want) && body.want.includes("today")) ? { today: todayFor(state, meta.tz, now) } : {};
+    return ok({ ...base, copy: copyOf(state), results, ...today });
   }
 
   // ---------- devices, leaving, deleting, export ----------

@@ -14,7 +14,17 @@ export function inZone<T>(tz: string, fn: () => T): T {
 }
 
 /** Fields each device keeps for itself; the account's copy never carries or overwrites them. */
-export const DEVICE_FIELDS = ["clock", "calendar", "judging", "unknown", "sorting"] as const;
+export const DEVICE_FIELDS = ["clock", "calendar", "judging", "unknown", "sorting", "withheld", "offersDismissed"] as const;
+
+/**
+ * Today, ready-made, for a device that can't run the engine (the Mac app): engine.snapshot as the
+ * native-messaging contract v1 has it, without the extension's pages and id.
+ */
+export function todayFor(state: State, tz: string, now: number): State {
+  const snap = inZone(tz, () => engine.snapshot(state, now, {}));
+  const { pages, extensionId, base, ...rest } = snap;
+  return rest;
+}
 
 export function copyOf(state: State): State {
   const c: State = { ...state };

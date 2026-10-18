@@ -10,7 +10,8 @@
     "smoke": "node scripts/smoke.mjs",
     "check": "npm run typecheck && npm test && npm run smoke && npm run smoke:account",
     "deploy": "wrangler deploy",
-    "smoke:account": "node scripts/account-smoke.mjs"
+    "smoke:account": "node scripts/account-smoke.mjs",
+    "dev:account": "node scripts/dev-account.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0"

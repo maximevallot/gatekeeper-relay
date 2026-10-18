@@ -2,7 +2,7 @@
 
 The API between the relay's account and its devices (the extension in Brave, Chrome and Safari, the Mac app, later the iPhone), for 0.3.0. It follows the design approved on 2026-10-18 ([one Gatekeeper per person](../../brain/outputs/html/2026-10-17-gatekeeper-one-per-person.html), and the "One Gatekeeper per person" section of `~/brain/knowledge/notes/gatekeeper.md`).
 
-Status: **draft 1, 2026-10-18**, written by the relay session. It is implemented on the relay's `account` branch and has not been deployed. The extension and the Mac app build against it; send changes to the relay session before building around them.
+Status: **draft 2, 2026-10-18** (draft 2 adds `today` for the Mac, `device_removed`, the `exam.start` name, two device-only fields, and how to run it locally), written by the relay session. It is implemented on the relay's `account` branch and has not been deployed. The extension and the Mac app build against it; send changes to the relay session before building around them.
 
 ## In one paragraph
 
@@ -19,7 +19,8 @@ Each person has one account: a Durable Object on the relay running the extension
 | Status | `error` | Meaning |
 | --- | --- | --- |
 | 400 | `bad_request`, `bad_version`, `invalid_<field>` | The request is malformed. Nothing changed. |
-| 401 | `bad_token` | No token, a malformed one, or one the account doesn't know (a removed device). Ask the user to join again. |
+| 401 | `bad_token` | No token, a malformed one, or a wrong key. Ask the user to join again. |
+| 401 | `device_removed` | This device was removed from the account (Settings › Devices on another device). Back to the code screen. |
 | 404 | `bad_code` | The code is wrong, used, or expired. |
 | 410 | `account_deleted` | The account was deleted. Keep the copy and carry on alone. |
 | 429 | `daily_limit` (with `scope`, `resets`) or `too_many_codes` | Not now. Try again later; nothing was approved. |
@@ -98,6 +99,7 @@ About every 30 seconds while the device is in use, and at once after something t
 }
 ```
 
+- `want: ["today"]` asks for `today` (below) in the answer. A device of kind `mac` always gets it, in the join answer too.
 - `have` is the `version` of the copy the device holds. If nothing changed and there were no spans or requests, the answer is `{ "v": 1, "version": 7, "serverNow": …, "unchanged": true }`, without a copy.
 - `spansUpTo` is the highest span `seq` the account has counted. The device drops the spans up to it and resends the rest at the next sync. Resending a span is harmless (see Spans).
 - `results` come in the order of `requests`. A request the account has already answered (the same `id`, within the last 200) gets its first answer again, so a retry never counts twice.
@@ -145,6 +147,7 @@ One per thing the user did. Each has a unique `id`, chosen by the device, and a 
 | `calendar` | `events: [{ title, start }]`, from 2 days ago to 14 days ahead, at most 20 (what the engine keeps) | the account keeps the events, never the link | `{ ok }` |
 
 - `talk` sends a page's `url`. Send only the scheme and host (`https://www.youtube.com/`); the gate needs nothing more. A YouTube video's address is never needed.
+- `exam.start` is accepted as another name for `startExam` (the Mac's name for it in the native-messaging contract).
 - The Mac app may send only `startExam`, plus the requests every device may send that tighten or say nothing (`noteGate`). Anything that loosens from the Mac is refused with `{ refused: "mac_cannot_loosen" }`, as in the native-messaging contract today.
 - An unknown `type` gets `{ "refused": "unknown_type" }`; the device should show "Update Gatekeeper here".
 - Claude's answers count against the account's daily allowance, not each device's.
@@ -157,6 +160,12 @@ One per thing the user did. Each has a unique `id`, chosen by the device, and a 
 - `calendar`: the link stays where it was pasted. Only `calendar` requests' events reach the account, which keeps them as `calendar.events`.
 - `judging`, `unknown`: work in flight on this device.
 - `sorting`: whether this browser can see every site.
+- `withheld`: which sites this browser can't see.
+- `offersDismissed`: exam offers dismissed on this device.
+
+### Today, ready-made: `today`
+
+For a device that can't run the engine (the Mac app), the join and sync answers carry `today`: `engine.snapshot(state, serverNow)` without `pages`, `extensionId` and `base`. It has the native-messaging contract v1 shape: `{ type, v, at, reopensAt, kinds: [{ kind, label, short, minutes, left, status, fraction, exam }], sites, goal, waiting, exam: { until, goal }, watch }`. An `unchanged` answer has no `today`; keep the last one.
 
 Everything else (rules, pending, exam mode, usage, passes, cooldowns, consent, thread, log, history, sorted, judged, loosen) is the account's.
 
@@ -181,3 +190,15 @@ The engine state (rules, goal, today's minutes, passes and cooldowns, 30 days of
 - The iPhone's coarse spans ("Social passed 5 minutes").
 - The Mac's list of apps exam mode hides. It stays a Mac setting.
 - Pushing changes to devices. Devices pull every 30 seconds.
+
+## Running it locally
+
+On the relay's `account` branch (worktree `~/gatekeeper-relay-0.3`):
+
+```
+npm ci
+npm run dev:account
+```
+
+This starts the relay on `http://127.0.0.1:8787` (or `$PORT`) under `wrangler dev`, with a fake Claude, so no key is needed and nothing leaves the machine. The fake Claude allows a gate message that mentions a lecture, asks back on one about class, and denies everything else. In the chat it answers "limit lequipe" with a 15-minute site limit. State is kept in `.wrangler/account-dev`; delete that folder to start over. Never point a device at the live relay for this; `/account/*` isn't deployed there.
+

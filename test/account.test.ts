@@ -296,3 +296,33 @@ describe("the account: devices, leaving, deleting, export", () => {
     expect((await call("/account/sync", {}, a.device.token)).status).toBe(410);
   });
 });
+
+describe("the account for the Mac app", () => {
+  it("answers the Mac's join and sync with Today ready-made", async () => {
+    const a = await create(deviceState({ social: 30, video: 45 }, { seconds: { social: 600 } }));
+    const j = await join(a.device.token, undefined, { name: "Gatekeeper for Mac", kind: "mac" });
+    expect(j.body.today.v).toBe(1);
+    expect(j.body.today.kinds.map((k: any) => k.kind)).toEqual(expect.arrayContaining(["social", "video"]));
+    expect(j.body.today.goal).toBe("Finish problem set 4");
+    for (const f of ["pages", "extensionId", "base"]) expect(j.body.today).not.toHaveProperty(f);
+    const until = Date.now() + 2 * 3600e3;
+    const s = await call("/account/sync", { now: Date.now(), want: ["today"], requests: [{ id: "m1", type: "exam.start", until, goal: "final" }] }, j.body.device.token);
+    expect(s.body.results[0]).toMatchObject({ ok: true }); // "exam.start" is the Mac's name for startExam
+    expect(s.body.today.exam).toEqual({ until, goal: "final" });
+    const social = s.body.today.kinds.find((k: any) => k.kind === "social");
+    expect(social.minutes).toBe(30);
+  });
+
+  it("gives Today to any device that asks for it, and not otherwise", async () => {
+    const a = await create(deviceState({ social: 30 }));
+    expect((await call("/account/sync", { now: Date.now() }, a.device.token)).body.today).toBeUndefined();
+    expect((await call("/account/sync", { now: Date.now(), want: ["today"] }, a.device.token)).body.today.v).toBe(1);
+  });
+
+  it("tells a removed device it was removed, so it goes back to the code screen", async () => {
+    const a = await create(deviceState({ social: 30 }));
+    const mac = (await join(a.device.token, undefined, { name: "Gatekeeper for Mac", kind: "mac" })).body.device;
+    await call("/account/remove", { deviceId: mac.id }, a.device.token);
+    expect((await call("/account/sync", {}, mac.token)).body).toEqual({ v: 1, error: "device_removed" });
+  });
+});

@@ -57,7 +57,8 @@ export async function handleAccount(path: string, body: Record<string, unknown>,
     if (await capped(env, ip, "join-ip", JOINS_PER_IP)) return fail(429, "daily_limit", { scope: "ip" });
     const accountId = await env.PAIRING.get(env.PAIRING.idFromName("code:" + body.code)).consume(now);
     if (!accountId) return fail(404, "bad_code");
-    return account(env, accountId).join(info, tz, from, now);
+    const wantToday = Array.isArray(body.want) && body.want.includes("today");
+    return account(env, accountId).join(info, tz, from, now, wantToday);
   }
 
   const token = (request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
