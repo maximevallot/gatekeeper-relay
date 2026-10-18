@@ -32,6 +32,7 @@ function answer(raw) {
         ],
       };
     }
+    if (/lequipe/i.test(said)) return { reply: "lequipe.fr: 15 minutes a day.", question: null, diff: [{ op: "siteLimit", domain: "lequipe.fr", minutes: 15 }] };
     if (/instagram/i.test(said)) return { reply: "Social: 40 minutes a day.", question: null, diff: [{ op: "budget", kind: "social", minutes: 40 }] };
     return { reply: "", question: "Which sites or videos, and how many minutes a day?", diff: [] };
   }

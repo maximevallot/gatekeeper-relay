@@ -1,6 +1,6 @@
 {
   "name": "gatekeeper-relay",
-  "version": "0.1.0",
+  "version": "0.3.0-dev",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,8 +8,9 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "smoke": "node scripts/smoke.mjs",
-    "check": "npm run typecheck && npm test && npm run smoke",
-    "deploy": "wrangler deploy"
+    "check": "npm run typecheck && npm test && npm run smoke && npm run smoke:account",
+    "deploy": "wrangler deploy",
+    "smoke:account": "node scripts/account-smoke.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0"
