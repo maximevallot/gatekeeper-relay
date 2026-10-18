@@ -58,7 +58,7 @@ describe("'are you connected to my calendar now?' is answered from the calendar'
 
   it("tells the model the status, and never sends events or the link", async () => {
     for (const [calendar, line] of [
-      [{ status: "connected", readAt: "2026-10-18T08:00:00-04:00" }, "- calendar link: connected, last read 2026-10-18T08:00:00-04:00; its events are not sent to this chat"],
+      [{ status: "connected", readAt: "2026-10-18T08:00:00-04:00" }, "- calendar link: connected, last read 2026-10-18T08:00:00-04:00; the events themselves are not sent to this chat"],
       [{ status: "failed", readAt: null }, "- calendar link: pasted, but the last time it was read it failed"],
       [{ status: "none", readAt: null }, "- calendar link: none pasted"],
       [undefined, "- calendar link: not known to this chat"],
@@ -69,9 +69,20 @@ describe("'are you connected to my calendar now?' is answered from the calendar'
     }
   });
 
+  it("reads the extension's names: not_working, lastRead and a count of events", async () => {
+    let calls = mockAnthropic({ answer: { reply: "OK.", question: null, diff: [] } });
+    await post("/rules", ask({ status: "connected", lastRead: "2026-10-18T08:00:00-04:00", events: 3 }));
+    expect(calls[0]!.body.messages[0].content).toContain("- calendar link: connected, last read 2026-10-18T08:00:00-04:00, 3 events in the next two weeks; the events themselves are not sent to this chat");
+    calls = mockAnthropic({ answer: { reply: "OK.", question: null, diff: [] } });
+    await post("/rules", ask({ status: "not_working", lastRead: null, events: 0 }));
+    expect(calls[0]!.body.messages[0].content).toContain("- calendar link: pasted, but the last time it was read it failed");
+    mockAnthropic();
+    expect((await post("/rules", ask({ status: "connected", events: "three" }))).status).toBe(400);
+  });
+
   it("drops anything but the status: no events, no link", async () => {
     const calls = mockAnthropic({ answer: { reply: "OK.", question: null, diff: [] } });
-    await post("/rules", ask({ status: "connected", readAt: null, url: "https://canvas.mit.edu/feeds/secret.ics", events: [{ title: "Midterm", start: 1 }] }));
+    await post("/rules", ask({ status: "connected", readAt: null, url: "https://canvas.mit.edu/feeds/secret.ics", titles: [{ title: "Midterm", start: 1 }] }));
     const user: string = calls[0]!.body.messages[0].content;
     expect(user).not.toContain("secret.ics");
     expect(user).not.toContain("Midterm");

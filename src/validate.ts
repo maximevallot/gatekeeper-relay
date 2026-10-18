@@ -242,7 +242,7 @@ export interface RulesInput {
   /** An earlier no holds every loosening until the morning (QA round 3, N1). */
   loosenLocked: boolean;
   /** Whether a calendar link is connected, and when it was last read. Never its events or its link. */
-  calendar: { status: "connected" | "failed" | "none"; readAt: string | null } | null;
+  calendar: { status: "connected" | "failed" | "none"; readAt: string | null; events: number | null } | null;
 }
 
 function ruleMinutes(v: unknown): number {
@@ -287,10 +287,14 @@ function rulesState(raw: unknown): RulesState {
 
 function calendarStatus(v: unknown): RulesInput["calendar"] {
   if (v === undefined || v === null) return null;
-  if (!isObject(v) || (v.status !== "connected" && v.status !== "failed" && v.status !== "none")) throw new BadRequest("invalid_calendar");
-  const readAt = v.readAt === undefined || v.readAt === null ? null : v.readAt;
-  if (readAt !== null && !isLocalTime(readAt)) throw new BadRequest("invalid_calendar");
-  return { status: v.status, readAt };
+  // The extension's names (status "not_working", lastRead, events) and the relay's first ones ("failed", readAt).
+  const status = v && isObject(v) ? (v.status === "not_working" ? "failed" : v.status) : null;
+  if (!isObject(v) || (status !== "connected" && status !== "failed" && status !== "none")) throw new BadRequest("invalid_calendar");
+  const raw = v.lastRead ?? v.readAt ?? null;
+  if (raw !== null && !isLocalTime(raw)) throw new BadRequest("invalid_calendar");
+  const n = v.events;
+  if (n !== undefined && n !== null && (typeof n !== "number" || !Number.isInteger(n) || n < 0 || n > 10000)) throw new BadRequest("invalid_calendar");
+  return { status, readAt: raw as string | null, events: typeof n === "number" ? n : null };
 }
 
 export function rulesInput(body: Obj): RulesInput {

@@ -97,7 +97,8 @@ function calendarText(c: RulesInput["calendar"]): string {
   if (!c) return "not known to this chat";
   if (c.status === "none") return "none pasted";
   if (c.status === "failed") return `pasted, but the last time it was read it failed${c.readAt ? ` (last read fine ${c.readAt})` : ""}`;
-  return `connected${c.readAt ? `, last read ${c.readAt}` : ""}; its events are not sent to this chat`;
+  const count = c.events === null ? "" : `, ${c.events} event${c.events === 1 ? "" : "s"} in the next two weeks`;
+  return `connected${c.readAt ? `, last read ${c.readAt}` : ""}${count}; the events themselves are not sent to this chat`;
 }
 
 export function rulesUserMessage(input: RulesInput): string {

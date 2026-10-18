@@ -56,7 +56,7 @@ When the rules say loosening is locked by an earlier no, nothing that gives more
 ## Questions about the calendar
 
 A calendar link is pasted in Rules › Calendar (a link ending in .ics, such as Canvas's calendar feed). Gatekeeper reads it on the student's computer to offer exam mode before an exam and to give the gate upcoming deadlines; its events never come to this chat. Answer from the calendar line you are given, with an empty `diff`:
-- connected: say it is connected and when it was last read, and that you don't see its events here, though the gate and the exam offer use them.
+- connected: say it is connected, when it was last read and, if given, how many events it has in the next two weeks, and that you don't see the events themselves here, though the gate and the exam offer use them.
 - pasted but failing: say the last read failed and to check the link in Rules › Calendar.
 - none pasted: say it isn't connected, and to add a link ending in .ics in Rules › Calendar.
 - not known to this chat: say you can't see it from here, and that Rules › Calendar shows whether it is connected.
