@@ -145,3 +145,20 @@ describe("study sites (extension fd8dda2): the chat can mark one, and exam mode 
     expect(rulesPrompt).toContain('never say when a change starts: not "now", not "tomorrow", not "the next morning"');
   });
 });
+
+describe("no reply says 'watched' (Maxime: it feels like someone is watching)", () => {
+  it("says limited, has no limit, and your first week", () => {
+    expect(voice("Social media is watched, and games are not watched.")).toBe("Social media is limited, and games are not limited.");
+    expect(voice("Video is no longer watched.")).toBe("Video is not limited.");
+    expect(voice("During the watch week nothing closes.")).toBe("During your first week nothing closes.");
+    expect(voice("Your watched categories are Social media and Video.")).toBe("Your limited categories are Social media and Video.");
+    expect(voice("You watched a video about stats.")).toBe("You watched a video about stats."); // the student watching is fine
+  });
+
+  it("filters every reply, and tells every prompt", async () => {
+    mockAnthropic({ answer: { reply: "Games are not watched, so they stay open.", question: null, diff: [] } });
+    expect(((await (await post("/rules", chat("is games limited?"))).json()) as any).reply).toBe("Games are not limited, so they stay open.");
+    for (const p of [rulesPrompt, gatePrompt, loosenPrompt]) expect(p).toMatch(/"limited" or "has no limit"/);
+    expect(rulesPrompt).not.toMatch(/A watched kind|watched or not|whether to watch/);
+  });
+});

@@ -10,8 +10,14 @@ const SWAPS: [RegExp, string][] = [
   [/\bthe (video|social|social media|games|news|shopping) kind\b/gi, "$1"],
   [/\b(video|social|social media|games|news|shopping) kind\b/gi, "$1"],
   [/\b(that|this|its|the same|a watched|the watched) kind\b/gi, "that category"],
-  [/\b(is|are) not watched\b/gi, "$1 not limited"],
+  // "Watched" reads as if someone were watching the student (Maxime, 2026-10-18): limits are "limited".
+  [/\b(the |your )?watch(ing)? week\b/gi, "your first week"],
+  [/\b(is|are|was|were) not (being )?watched\b/gi, "$1 not limited"],
+  [/\b(no longer|not) watched\b/gi, "not limited"],
   [/\bunwatched\b/gi, "not limited"],
+  [/\b(is|are|was|were|stays?|remains?) (being )?watched\b/gi, "$1 limited"],
+  [/\bwatched (categor(?:y|ies)|kinds?|sites?)\b/gi, "limited $1"],
+  [/\bwatched\b(?= (?:or not|and|,|\.))/gi, "limited"],
 ];
 
 export function voice(reply: string): string {
