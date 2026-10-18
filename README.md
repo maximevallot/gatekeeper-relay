@@ -204,7 +204,7 @@ npm run check
 `npm run check` runs three things, none of which needs a key or an account or touches the network:
 
 1. `npm run typecheck`: TypeScript.
-2. `npm test`: 114 vitest tests inside the Workers runtime (`@cloudflare/vitest-plugin`), with a mocked Anthropic API. They cover the request sent to Claude, the minute clamp, refusals and bad output, upstream failures, installId and field validation, every cap, the sort cache, origins, the rules chat and video judge (their checks on the model output, input validation and allowances), loosening, and exam mode across `/rules`, `/gate` and `/loosen`.
+2. `npm test`: 125 vitest tests inside the Workers runtime (`@cloudflare/vitest-plugin`), with a mocked Anthropic API. They cover the request sent to Claude, the minute clamp, refusals and bad output, upstream failures, installId and field validation, every cap, the sort cache, origins, the rules chat and video judge (their checks on the model output, input validation and allowances), loosening, and exam mode across `/rules`, `/gate` and `/loosen`.
 3. `npm run smoke`: starts the real Worker under `wrangler dev`, points it at a fake Anthropic server on localhost ([scripts/mock-anthropic.mjs](scripts/mock-anthropic.mjs)) and checks both endpoints end to end.
 
 To try it against the real API locally, copy `.dev.vars.example` to `.dev.vars`, put a key in it, and run `npm run dev`. `.dev.vars` is git-ignored.

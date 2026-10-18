@@ -265,6 +265,22 @@ describe("the account asks Claude itself", () => {
   });
 });
 
+describe("the account after a no (QA round 3, N1)", () => {
+  it("tells the chat that loosening is locked, so the card leaves it out", async () => {
+    const a = await create(deviceState({ games: 15 }, { help: true }));
+    const T = a.device.token;
+    await call("/account/sync", { now: Date.now(), requests: [{ id: "p", type: "propose", rules: { kinds: { games: { minutes: 60 } } } }] }, T);
+    mockAnthropic({ answer: { decision: "deny", when: null, reply: "No." } });
+    const no = await call("/account/sync", { now: Date.now(), requests: [{ id: "l", type: "loosen", message: "more games" }] }, T);
+    expect(no.body.results[0].decision).toBe("deny");
+    const calls = mockAnthropic({ answer: { reply: "Games budget changed from 15 to 30 minutes a day.", question: null, diff: [{ op: "budget", kind: "games", minutes: 30 }] } });
+    const chat = await call("/account/sync", { now: Date.now(), requests: [{ id: "c", type: "chat", message: "give games 30 min" }] }, T);
+    expect(calls[0]!.body.messages[0].content).toContain("- loosening: locked until");
+    expect(chat.body.copy.thread.card).toBeNull();
+    expect(chat.body.copy.thread.turns.some((t: any) => t.text.startsWith("I said no to a loosening today"))).toBe(true);
+  });
+});
+
 describe("the account: devices, leaving, deleting, export", () => {
   it("lists devices, and a removed device's token stops working", async () => {
     const a = await create(deviceState({ social: 30 }));
