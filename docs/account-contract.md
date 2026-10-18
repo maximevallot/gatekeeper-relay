@@ -135,7 +135,7 @@ One per thing the user did. Each has a unique `id`, chosen by the device, and a 
 | `applyCard` | | `applyCard` | the outcome, or `{ refused }` |
 | `dropCard` | | `dropCard` | `{ ok }` |
 | `forgetThread` | | `forgetThread` | `{ ok }` |
-| `startExam` | `until`, `goal`, `source` | `startExam` | `{ ok, refused, exam }` |
+| `startExam` | `until`, `goal`, `source`, `at?` (the exam's own time) | `startExam` | `{ ok, refused, exam }` |
 | `endExam` | | `endExam` | `{ refused, until, needsOk }` |
 | `loosen` | `message`, `examAt?` | `loosenRequest`, Claude's `/loosen`, `applyLoosenAnswer` | the agent's answer, or `{ decision: "unavailable", error }` |
 | `dropLoosen` | | `dropLoosen` | `{ ok }` |

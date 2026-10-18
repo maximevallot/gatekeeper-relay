@@ -120,7 +120,7 @@ export const HANDLERS: Record<string, Handler> = {
   },
   startExam(s, req, ctx) {
     const from = ctx.deviceKind === "mac" ? "mac" : ["today", "rules", "calendar"].includes(req.source) ? req.source : "extension";
-    const out = E(ctx)(() => engine.startExam(s, { until: req.until, goal: req.goal, source: from }, ctx.now));
+    const out = E(ctx)(() => engine.startExam(s, { until: req.until, goal: req.goal, at: req.at, source: from }, ctx.now));
     return { state: out.state, result: { ok: !out.refused, refused: out.refused, exam: out.exam } };
   },
   endExam(s, _req, ctx) {
