@@ -206,8 +206,8 @@ export interface VideoRuleState extends VideoRuleText {
 export interface RulesState {
   kinds: Partial<Record<Kind, number>>;
   sites: Record<string, Kind>;
-  /** A site's own daily minutes, independent of its kind. 0: closed. */
-  siteBudgets: Record<string, number>;
+  /** A site's own daily minutes, independent of its kind. 0: closed. null: no daily limit, closed only in exam mode. */
+  siteLimits: Record<string, number | null>;
   videos: VideoRuleState[];
   dayStart: number;
 }
@@ -247,10 +247,10 @@ function rulesState(raw: unknown): RulesState {
     if (typeof k !== "string" || !(KINDS as readonly string[]).includes(k)) throw new BadRequest("invalid_rules");
     sites[domain(d, "rules")] = k as Kind;
   }
-  const siteBudgets: Record<string, number> = {};
-  const rawBudgets = (raw.siteBudgets ?? {}) as Obj;
-  if (!isObject(rawBudgets) || Object.keys(rawBudgets).length > 100) throw new BadRequest("invalid_rules");
-  for (const [d, m] of Object.entries(rawBudgets)) siteBudgets[domain(d, "rules")] = ruleMinutes(m);
+  const siteLimits: Record<string, number | null> = {};
+  const rawLimits = (raw.siteLimits ?? {}) as Obj;
+  if (!isObject(rawLimits) || Object.keys(rawLimits).length > 100) throw new BadRequest("invalid_rules");
+  for (const [d, m] of Object.entries(rawLimits)) siteLimits[domain(d, "rules")] = m === null ? null : ruleMinutes(m);
   if (!Array.isArray(raw.videos ?? []) || ((raw.videos ?? []) as unknown[]).length > 20) throw new BadRequest("invalid_rules");
   const texts = videoRuleTexts(raw.videos ?? [], 20);
   const videos = texts.map((t, i) => {
@@ -261,7 +261,7 @@ function rulesState(raw: unknown): RulesState {
   });
   const ds = raw.dayStart ?? 4;
   if (typeof ds !== "number" || !Number.isInteger(ds) || ds < 0 || ds > 23) throw new BadRequest("invalid_rules");
-  return { kinds, sites, siteBudgets, videos, dayStart: ds };
+  return { kinds, sites, siteLimits, videos, dayStart: ds };
 }
 
 export function rulesInput(body: Obj): RulesInput {
