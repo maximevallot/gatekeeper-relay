@@ -101,3 +101,18 @@ describe("a no from Gatekeeper is calm and gives a way forward", () => {
     expect(loosenPrompt).toContain("ask at the gate on that video; you can ask for more again tomorrow");
   });
 });
+
+describe("internal words never reach the student", () => {
+  it("names the category instead of 'the Video kind', and 'not limited' instead of 'not watched'", () => {
+    expect(voice("YouTube videos about astrophysics will count against that rule, not against the Video kind."))
+      .toBe("YouTube videos about astrophysics will count against that rule, not against Video.");
+    expect(voice("YouTube is a video site, so it falls under that kind.")).toBe("YouTube is a video site, so it falls under that category.");
+    expect(voice("Gatekeeper's other YouTube videos are not limited, since the video kind is not watched."))
+      .toBe("Gatekeeper's other YouTube videos are not limited, since video is not limited.");
+    expect(voice("A kind of video you like stays free.")).toBe("A kind of video you like stays free."); // ordinary English is left alone
+  });
+});
+
+it("capitalizes a category that starts a sentence after a swap", () => {
+  expect(voice("The video kind is not watched. OK.")).toBe("Video is not limited. OK.");
+});
