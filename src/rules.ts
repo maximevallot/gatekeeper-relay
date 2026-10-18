@@ -307,9 +307,34 @@ const TIMING = /\b(now|at once|immediately|right away|tomorrow|next morning|in t
 export function honest(reply: string, diff: Op[], input: RulesInput): string {
   if (!diff.length) return reply;
   if (diff.some((op) => loosens(op, input.rules, input.exam))) return diff.map((op) => describeChange(op, input.rules)).join(". ") + ".";
-  const kept = reply.split(/(?<=[.!?])\s+/).filter((s) => !TIMING.test(s));
-  return kept.join(" ").trim() || diff.map((op) => describeChange(op, input.rules)).join(". ") + ".";
+  // A sentence about timing often carries the change itself ("Social media is 15 minutes now, lowered to 10"):
+  // if one has to go, the reply is described from the changes instead of what is left.
+  const sentences = reply.split(/(?<=[.!?])\s+/);
+  if (sentences.some((s) => TIMING.test(s))) return diff.map((op) => describeChange(op, input.rules)).join(". ") + ".";
+  return reply;
 }
+
+/**
+ * A reply that says a change was made when the diff carries none ("Less social media" got "I've lowered it to
+ * 10 minutes a day" and an empty diff, so nothing changed). Checked in code, not only asked of the prompt.
+ */
+const CLAIM = new RegExp([
+  "\\bI(?:'ve| have| just)? (?:set|lowered|raised|changed|added|removed|closed|blocked|limited|reduced|increased|cut|made|turned|put|updated|marked)\\b",
+  "\\b(?:is|are|has been|have been) now\\b",
+  "\\bnow (?:limited|closed|blocked|set|capped|free|open|counts?)\\b",
+  "\\b(?:has|have) been (?:set|lowered|raised|changed|added|removed|closed|blocked|limited|reduced|increased|updated)\\b",
+  "\\b(?:Done|Updated|Changed)\\b[.!]",
+].join("|"), "i");
+
+export function claimsChange(r: RulesResult): boolean {
+  return !r.question && !r.diff.length && CLAIM.test(r.reply);
+}
+
+const NO_CLAIM: RulesResult = {
+  reply: "",
+  question: "What should change? Name the site or category, and the minutes a day.",
+  diff: [],
+};
 
 /** Whether a change could give more time than the rules as sent. Unsure cases count as loosening. */
 export function loosens(op: Op, r: RulesInput["rules"], exam: RulesInput["exam"] = null): boolean {
@@ -343,6 +368,20 @@ export function loosens(op: Op, r: RulesInput["rules"], exam: RulesInput["exam"]
 }
 
 export async function rules(env: Env, input: RulesInput): Promise<{ result: RulesResult; tokens: number }> {
-  const out = await askClaude(env, { system: rulesPrompt, user: rulesUserMessage(input), schema: SCHEMA, maxTokens: 2048 });
-  return { result: out.ok ? enforceRules(out.data, input) : FALLBACK, tokens: out.tokens };
+  const user = rulesUserMessage(input);
+  const out = await askClaude(env, { system: rulesPrompt, user, schema: SCHEMA, maxTokens: 2048 });
+  let result = out.ok ? enforceRules(out.data, input) : FALLBACK;
+  let tokens = out.tokens;
+  if (claimsChange(result)) {
+    // Asked once more, told what went wrong; if it still claims a change it doesn't carry, it asks instead.
+    const again = await askClaude(env, {
+      system: rulesPrompt,
+      user: user + "\n\nYour last answer said a change was made but its diff was empty, so nothing would change. Put the change in diff, or ask one question with an empty diff.",
+      schema: SCHEMA, maxTokens: 2048,
+    });
+    tokens += again.tokens;
+    const second = again.ok ? enforceRules(again.data, input) : FALLBACK;
+    result = claimsChange(second) || second === FALLBACK ? NO_CLAIM : second;
+  }
+  return { result, tokens };
 }

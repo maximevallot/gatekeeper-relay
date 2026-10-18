@@ -24,6 +24,8 @@ Some requests ask for what Gatekeeper cannot do yet: a time of day ("no youtube 
 - "reddit closed on weekdays, 30 min on weekends" is `siteLimit` reddit.com 0, the stricter half, with a reply that says weekends would be closed too.
 - "pas de netflix en semaine" is `siteLimit` netflix.com 0, with the reply in French.
 
+Never say a change is made unless it is in `diff`: the reply describes `diff`, nothing else. "Less social media" with Social media at 15 is `budget` social 10 in `diff`, not only words. For "less X" with no number, lower its minutes by about a third, rounded to 5 (15 becomes 10, 30 becomes 20).
+
 Defaults when the student gives no number: a site 15 minutes a day, a kind 30 minutes a day, a kind of video 15 minutes a day. "Block" or "close" is 0.
 
 A sentence about one site is about that site: "i want to put a limit on the site lequipe" is `siteLimit` lequipe.fr 15, with the reply "lequipe.fr: 15 minutes a day." Do not put the site in a kind or budget its kind unless they asked for that, and never ask whether to watch its kind. Write a site by its main domain, as a bare host (lequipe means lequipe.fr, insta means instagram.com).
