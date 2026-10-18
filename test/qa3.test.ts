@@ -32,7 +32,7 @@ describe("QA round 3, #4 (chat N1): after one no, the chat says what happens", (
     const calls = mockAnthropic({ answer: MODEL });
     const out = await (await post("/rules", body(true))).json();
     expect(out).toEqual({ reply: "I said no to a loosening today, so that waits: ask again after 4:00.", question: null, diff: [] });
-    expect(calls[0]!.body.messages[0].content).toContain("- loosening: locked until 4:00 tomorrow by an earlier no");
+    expect(calls[0]!.body.messages[0].content).toContain("- loosening the rules: locked until 4:00 tomorrow by an earlier no");
     expect(rulesPrompt).toContain("When the rules say loosening is locked by an earlier no");
   });
 
@@ -40,14 +40,15 @@ describe("QA round 3, #4 (chat N1): after one no, the chat says what happens", (
     mockAnthropic({ answer: { reply: "OK.", question: null, diff: [{ op: "budget", kind: "games", minutes: 30 }, { op: "siteLimit", domain: "reddit.com", minutes: 10 }] } });
     const out = (await (await post("/rules", { ...body(true), message: "give games 30 min and limit reddit to 10" })).json()) as any;
     expect(out.diff).toEqual([{ op: "siteLimit", domain: "reddit.com", minutes: 10 }]);
-    expect(out.reply).toBe("The stricter part applies now. I said no to a loosening today, so the rest waits: ask again after 4:00.");
+    expect(out.reply).toBe("The stricter part applies now. I said no to a loosening of your rules today, so the rest waits: ask again after 4:00.");
   });
 
-  it("without the flag, nothing changes", async () => {
+  it("without the flag, the change stays on the card, described, never as done", async () => {
+    const asked = { ...MODEL, reply: "Games: 15 → 30 minutes a day." };
     mockAnthropic({ answer: MODEL });
-    expect(await (await post("/rules", body())).json()).toEqual(MODEL);
+    expect(await (await post("/rules", body())).json()).toEqual(asked);
     mockAnthropic({ answer: MODEL });
-    expect(await (await post("/rules", body(false))).json()).toEqual(MODEL);
+    expect(await (await post("/rules", body(false))).json()).toEqual(asked);
   });
 
   it("knows which changes loosen", async () => {

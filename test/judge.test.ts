@@ -22,12 +22,13 @@ describe("POST /judge", () => {
     const calls = mockAnthropic({ answer: { rule: "v1" } });
     const res = await post("/judge", body());
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ rule: "v1", judged: true });
+    expect(await res.json()).toEqual({ rule: "v1", judged: true, forExam: null });
     expect(calls).toHaveLength(1);
     expect(calls[0]!.body.system[0].text).toBe(judgePrompt);
     expect(calls[0]!.body.messages[0].content).toBe(
       [
         "site: youtube.com",
+        "exam mode: off",
         "rules:",
         "- id: v1\n  about: video games: gameplay, let's plays, streams\n  except: educational videos about games",
         "- id: v2\n  about: educational: lectures, tutorials, explainers\n  except: (none)",
@@ -40,8 +41,8 @@ describe("POST /judge", () => {
 
   it("answers none as no rule, and an id it was not sent, a refusal or junk as not judged", async () => {
     mockAnthropic({ answer: { rule: "none" } }, { answer: { rule: "v9" } }, { stopReason: "refusal" }, { answer: "not json" });
-    expect(await (await post("/judge", body())).json()).toEqual({ rule: null, judged: true });
-    for (let i = 0; i < 3; i++) expect(await (await post("/judge", body())).json()).toEqual({ rule: null, judged: false });
+    expect(await (await post("/judge", body())).json()).toEqual({ rule: null, judged: true, forExam: null });
+    for (let i = 0; i < 3; i++) expect(await (await post("/judge", body())).json()).toEqual({ rule: null, judged: false, forExam: null });
   });
 
   it("keeps the title and channel inside their tags", async () => {

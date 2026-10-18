@@ -56,6 +56,7 @@ The person is at the gate page of a blocked site and typed one message. The gate
 - `decision` is `allow`, `deny` or `ask`. Only `allow` carries minutes; `deny` and `ask` always have `minutes: 0`.
 - The server has the last word on minutes: a pass is at least 1 and at most `MAX_PASS_MINUTES` (10), whatever the model says. In exam mode the cap is `MAX_EXAM_PASS_MINUTES` (5), and the prompt allows a pass only for a page that serves the exam ("what is ROCE").
 - If the model refuses, or returns something that is not one of the three decisions, the answer is `deny` with 0 minutes.
+- `asked` (optional) is the gate's one question when the message answers it. The gate then decides allow or deny: if the model asks again, the relay asks it once more to decide, then answers no with a way forward ("Open a video about stats and it will play.").
 - `deadlines` is up to 10 items, each `{title, due}` or a plain string: the events from the student's calendar link for the next 48 hours. The prompt tells the model it cannot know whether a deadline was submitted, so it never calls one overdue. (On 14 October the old gate told Maxime a worksheet was overdue that Anders had already submitted for the team.)
 - Limits: `message` 1 to 500 characters, `goal` up to 300, `minutesUsed` and `budget` 0 to 1440, `kind` one of the eight kinds below, or `"site"` for a site with its own limit (then `minutesUsed` and `budget` are that site's own).
 
@@ -92,7 +93,11 @@ The rules chat on the extension's rules page: the student's words in, a list of 
 ```
 
 - Operations: `budget` {kind, minutes}, `unwatch` {kind}, `site` {domain, kind}, `unsite` {domain}, `addVideo`, `videoBudget` {id, minutes}, `dropVideo` {id}, `dayStart` {hour}, `examStart` {until, goal}, `examEnd` {}, `siteLimit` {domain, minutes}, `dropSiteLimit` {domain}. A video rule's `minutes` is 0 (closed), a number (its own daily minutes) or `null` (free).
-- `loosenLocked: true` (optional) says an earlier no holds every loosening until the morning. The relay then drops every change that would give more time and replies "I said no to a loosening today, so that waits: ask again after 4:00." (QA round 3, N1).
+- Replies promise no timing; the card says when each part applies. A card that gives more time gets its reply from the changes themselves ("Video: 10 → 20 minutes a day."), never "Video is now 20"; otherwise the model's words stay, without sentences about timing.
+- `study` {domain} and `unstudy` {domain} mark a site as a study site, which stays open in exam mode; the rules carry `study: [...]`. In exam mode the chat never leaves a dead end: it marks the site as study or points to the gate. Every reply speaks as Gatekeeper and never says Claude, the agent, or that a category is "watched" ([src/voice.ts](src/voice.ts)).
+- `calendar: { status: "connected" | "not_working" | "none", lastRead, events }` (optional; `failed` and `readAt` are read too; `events` is a count) lets the chat answer "are you connected to my calendar?". Never events or the link: /privacy/0.2 sends calendar deadlines only with a gate message.
+- No reply claims a change its diff doesn't carry. When one does ("I've lowered it" with an empty diff), the relay asks the model once more, then asks the student instead.
+- `loosenLocked: true` (optional) says an earlier no holds every loosening until the morning. The relay then drops every change to the rules that would give more time (ending exam mode early is not held by it) and replies "I said no to a loosening today, so that waits: ask again after 4:00." (QA round 3, N1).
 - `examStart` starts exam mode, or extends it while it is on. Its `at` is the exam's own time when the student says it ("exam thursday 9am"), or null; the extension keeps it, and exam mode can end at once only after it. `examEnd` asks to end it early; the extension turns it into a loosening request through `/loosen`.
 - `siteLimit` {domain, minutes} gives one site its own limit, whatever its kind: daily minutes (0 closes it all day), or `null` for "closed only in exam mode". `dropSiteLimit` {domain} removes it. The rules state may carry `siteLimits: { "lequipe.fr": 15 }`. These names were agreed with the extension on 2026-10-17.
 - The chat chooses a stated default rather than asking how to model a rule: "i want to put a limit on the site lequipe" gets `siteLimit` lequipe.fr 15 and the reply "lequipe.fr: 15 minutes a day." It asks only when a request cannot be carried out (an unknown site, exam mode with no end time).
@@ -127,6 +132,8 @@ Which of the student's video rules one YouTube video falls under.
 - `judged: false` means the model refused or named no rule it was sent; the extension then judges by the rule's word lists on the device.
 - Nothing is cached or stored: a list of video titles says too much about a person. The extension keeps the answer per video ID.
 - The video's address is never sent; the extension gets the title and channel from YouTube's oEmbed address.
+
+- In exam mode, the exam comes as `exam: { until, goal }`, or as the extension sends it, a rule `{ id: "exam", about: <goal> }`; `rules` may then hold nothing else. With the rule form, an on-topic video is answered `rule: "exam"`. The answer gains `forExam`: whether the video is about the exam's subject (generous to coursework, strict on entertainment), null outside exam mode.
 
 ### Errors
 
@@ -204,7 +211,7 @@ npm run check
 `npm run check` runs three things, none of which needs a key or an account or touches the network:
 
 1. `npm run typecheck`: TypeScript.
-2. `npm test`: 125 vitest tests inside the Workers runtime (`@cloudflare/vitest-plugin`), with a mocked Anthropic API. They cover the request sent to Claude, the minute clamp, refusals and bad output, upstream failures, installId and field validation, every cap, the sort cache, origins, the rules chat and video judge (their checks on the model output, input validation and allowances), loosening, and exam mode across `/rules`, `/gate` and `/loosen`.
+2. `npm test`: 170 vitest tests inside the Workers runtime (`@cloudflare/vitest-plugin`), with a mocked Anthropic API. They cover the request sent to Claude, the minute clamp, refusals and bad output, upstream failures, installId and field validation, every cap, the sort cache, origins, the rules chat and video judge (their checks on the model output, input validation and allowances), loosening, and exam mode across `/rules`, `/gate` and `/loosen`.
 3. `npm run smoke`: starts the real Worker under `wrangler dev`, points it at a fake Anthropic server on localhost ([scripts/mock-anthropic.mjs](scripts/mock-anthropic.mjs)) and checks both endpoints end to end.
 
 To try it against the real API locally, copy `.dev.vars.example` to `.dev.vars`, put a key in it, and run `npm run dev`. `.dev.vars` is git-ignored.

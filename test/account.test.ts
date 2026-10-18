@@ -265,8 +265,8 @@ describe("the account asks Claude itself", () => {
   });
 });
 
-describe("the account after a no (QA round 3, N1)", () => {
-  it("tells the chat that loosening is locked, so the card leaves it out", async () => {
+describe("the account after a no (a no holds only its own rule, 2026-10-18)", () => {
+  it("never shows a looser change as made after a no", async () => {
     const a = await create(deviceState({ games: 15 }, { help: true }));
     const T = a.device.token;
     await call("/account/sync", { now: Date.now(), requests: [{ id: "p", type: "propose", rules: { kinds: { games: { minutes: 60 } } } }] }, T);
@@ -274,10 +274,11 @@ describe("the account after a no (QA round 3, N1)", () => {
     const no = await call("/account/sync", { now: Date.now(), requests: [{ id: "l", type: "loosen", message: "more games" }] }, T);
     expect(no.body.results[0].decision).toBe("deny");
     const calls = mockAnthropic({ answer: { reply: "Games budget changed from 15 to 30 minutes a day.", question: null, diff: [{ op: "budget", kind: "games", minutes: 30 }] } });
-    const chat = await call("/account/sync", { now: Date.now(), requests: [{ id: "c", type: "chat", message: "give games 30 min" }] }, T);
-    expect(calls[0]!.body.messages[0].content).toContain("- loosening: locked until");
-    expect(chat.body.copy.thread.card).toBeNull();
-    expect(chat.body.copy.thread.turns.some((t: any) => t.text.startsWith("I said no to a loosening today"))).toBe(true);
+    await call("/account/sync", { now: Date.now(), requests: [{ id: "c", type: "chat", message: "give games 30 min" }] }, T);
+    expect(calls).toHaveLength(1);
+    // Whatever the engine sends about the earlier no, the student never reads the change as made.
+    const turns = (await call("/account/sync", { now: Date.now(), want: [] }, T)).body.copy.thread.turns.map((t: any) => t.text);
+    expect(turns.join(" ")).not.toContain("changed from 15 to 30");
   });
 });
 

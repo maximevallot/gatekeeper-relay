@@ -38,7 +38,11 @@ describe("POST /rules", () => {
     const calls = mockAnthropic({ answer: EXAMPLE_ANSWER });
     const res = await post("/rules", body());
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual(EXAMPLE_ANSWER);
+    // The free educational rule gives more time, so the reply names the changes and promises no timing (2026-10-18).
+    expect(await res.json()).toEqual({
+      ...EXAMPLE_ANSWER,
+      reply: "Videos about video games: gameplay, let's plays: closed all day. Videos about educational: lectures, tutorials: no limit.",
+    });
     const req = calls[0]!.body;
     expect(req.system[0].text).toBe(rulesPrompt);
     expect(req.output_config.format.type).toBe("json_schema");
@@ -48,10 +52,12 @@ describe("POST /rules", () => {
         "rules now:",
         "- watched kinds: video 20 min a day, games 15 min a day (kinds not listed have no limit)",
         "- the student's own sites: openfront.io counted as games",
+        "- sites the student marked as study sites: none",
         "- sites with their own limit: none",
         "- video rules:\n  - v1 on youtube.com: about \"music videos\", 30 min a day",
         "- the day starts at 4:00",
         "- exam mode: off",
+        "- calendar link: not known to this chat",
         "",
         "conversation so far: none",
         "",

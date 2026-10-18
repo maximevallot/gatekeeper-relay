@@ -9,6 +9,7 @@ import { rules } from "./rules";
 import { cachedKind, sort } from "./sort";
 import { BadRequest, gateInput, isObject, judgeInput, loosenInput, rulesInput, sortInput } from "./validate";
 import privacyPage from "../pages/privacy.html";
+import privacyPage02 from "../pages/privacy-0.2.0.html";
 
 export { Quota } from "./quota";
 export { Account, Pairing } from "./account/account";
@@ -20,7 +21,8 @@ const PATHS = ["/gate", "/sort", "/judge", "/rules", "/loosen"];
 function allowedOrigin(origin: string | null, env: Env): boolean {
   if (origin === null) return true; // not a browser page: curl, tests, or an extension with host permission
   const list = (env.ALLOWED_ORIGINS || "").split(",").map((s) => s.trim()).filter(Boolean);
-  return list.length ? list.includes(origin) : origin.startsWith("chrome-extension://");
+  // Chrome, Brave, Arc, Opera and Vivaldi use chrome-extension://; Edge may show extension://, so both are let through.
+  return list.length ? list.includes(origin) : origin.startsWith("chrome-extension://") || origin.startsWith("extension://");
 }
 
 function corsHeaders(origin: string | null): Record<string, string> {
@@ -81,6 +83,12 @@ async function handle(request: Request, env: Env, ctx: ExecutionContext, origin:
   // The privacy policy the Chrome Web Store listing links to.
   if (pathname === "/privacy" && (request.method === "GET" || request.method === "HEAD")) {
     return new Response(request.method === "HEAD" ? null : privacyPage, {
+      headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=3600" },
+    });
+  }
+  // The 0.2.0 policy, for the first testers, who load 0.2.0 themselves; /privacy stays the store's until 0.2.0 is approved.
+  if (pathname === "/privacy/0.2" && (request.method === "GET" || request.method === "HEAD")) {
+    return new Response(request.method === "HEAD" ? null : privacyPage02, {
       headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=3600" },
     });
   }

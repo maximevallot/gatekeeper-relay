@@ -109,6 +109,8 @@ export interface GateInput {
   message: string;
   now: string | null;
   exam: Exam | null;
+  /** The gate's one question, when the message answers it: then the gate decides, it never asks again. */
+  asked: string;
 }
 
 export function gateInput(body: Obj): GateInput {
@@ -136,6 +138,7 @@ export function gateInput(body: Obj): GateInput {
     message: str(body, "message", 500, true),
     now: now(body),
     exam: exam(body),
+    asked: plain(body.asked, "asked", 300, false),
   };
 }
 
@@ -171,6 +174,13 @@ export interface JudgeInput {
   title: string;
   channel: string;
   rules: VideoRuleText[];
+  /**
+   * Exam mode, if on: what the exam is for, so the video is also judged against its subject (forExam). It
+   * comes as `exam: {until, goal}`, or as the extension sends it, a rule `{ id: "exam", about: <goal> }`.
+   */
+  examGoal: string | null;
+  /** The exam came as a rule with id "exam": an on-topic video is answered as rule "exam". */
+  examRule: boolean;
 }
 
 function plain(v: unknown, key: string, max: number, required: boolean): string {
@@ -198,14 +208,21 @@ function videoRuleTexts(raw: unknown, max: number): VideoRuleText[] {
 export function judgeInput(body: Obj): JudgeInput {
   const site = domain(body.site, "site");
   if (!(VIDEO_SITES as readonly string[]).includes(site)) throw new BadRequest("invalid_site");
-  const rules = videoRuleTexts(body.rules, 20);
-  if (!rules.length) throw new BadRequest("invalid_rules");
+  const raw = Array.isArray(body.rules) ? body.rules : body.rules ?? [];
+  const asRule = Array.isArray(raw) ? raw.find((r) => isObject(r) && r.id === "exam") : undefined;
+  const rules = videoRuleTexts(Array.isArray(raw) ? raw.filter((r) => r !== asRule) : raw, 20);
+  const ex = exam(body);
+  const examGoal = asRule ? plain((asRule as Obj).about, "about", 200, true) : ex ? ex.goal || "an exam" : null;
+  // In exam mode a video is judged against the exam even with no video rules.
+  if (!rules.length && examGoal === null) throw new BadRequest("invalid_rules");
   return {
     installId: installId(body),
     site,
     title: plain(body.title, "title", 200, true),
     channel: plain(body.channel, "channel", 100, false),
     rules,
+    examGoal,
+    examRule: !!asRule,
   };
 }
 
@@ -220,6 +237,8 @@ export interface RulesState {
   sites: Record<string, Kind>;
   /** A site's own daily minutes, independent of its kind. 0: closed. null: no daily limit, closed only in exam mode. */
   siteLimits: Record<string, number | null>;
+  /** Sites the student marked as study sites: they stay open in exam mode. */
+  study: string[];
   videos: VideoRuleState[];
   dayStart: number;
 }
@@ -239,6 +258,8 @@ export interface RulesInput {
   exam: Exam | null;
   /** An earlier no holds every loosening until the morning (QA round 3, N1). */
   loosenLocked: boolean;
+  /** Whether a calendar link is connected, and when it was last read. Never its events or its link. */
+  calendar: { status: "connected" | "failed" | "none"; readAt: string | null; events: number | null } | null;
 }
 
 function ruleMinutes(v: unknown): number {
@@ -275,7 +296,22 @@ function rulesState(raw: unknown): RulesState {
   });
   const ds = raw.dayStart ?? 4;
   if (typeof ds !== "number" || !Number.isInteger(ds) || ds < 0 || ds > 23) throw new BadRequest("invalid_rules");
-  return { kinds, sites, siteLimits, videos, dayStart: ds };
+  const rawStudy = raw.study ?? [];
+  if (!Array.isArray(rawStudy) || rawStudy.length > 100) throw new BadRequest("invalid_rules");
+  const study = [...new Set(rawStudy.map((d) => domain(d, "rules")))];
+  return { kinds, sites, siteLimits, study, videos, dayStart: ds };
+}
+
+function calendarStatus(v: unknown): RulesInput["calendar"] {
+  if (v === undefined || v === null) return null;
+  // The extension's names (status "not_working", lastRead, events) and the relay's first ones ("failed", readAt).
+  const status = v && isObject(v) ? (v.status === "not_working" ? "failed" : v.status) : null;
+  if (!isObject(v) || (status !== "connected" && status !== "failed" && status !== "none")) throw new BadRequest("invalid_calendar");
+  const raw = v.lastRead ?? v.readAt ?? null;
+  if (raw !== null && !isLocalTime(raw)) throw new BadRequest("invalid_calendar");
+  const n = v.events;
+  if (n !== undefined && n !== null && (typeof n !== "number" || !Number.isInteger(n) || n < 0 || n > 10000)) throw new BadRequest("invalid_calendar");
+  return { status, readAt: raw as string | null, events: typeof n === "number" ? n : null };
 }
 
 export function rulesInput(body: Obj): RulesInput {
@@ -296,6 +332,7 @@ export function rulesInput(body: Obj): RulesInput {
     now: now(body),
     exam: exam(body),
     loosenLocked: body.loosenLocked === true,
+    calendar: calendarStatus(body.calendar),
   };
 }
 

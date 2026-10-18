@@ -5,6 +5,8 @@
   "compatibility_date": "2026-10-01",
   // Prompts live in prompts/*.md and are bundled as plain text.
   "rules": [{ "type": "Text", "globs": ["**/*.md", "**/*.html"], "fallthrough": true }],
+  // The testers' start page and download, served as static files before the Worker runs.
+  "assets": { "directory": "./public" },
   "observability": { "enabled": true },
   "vars": {
     "MODEL": "claude-haiku-5-5",

@@ -95,9 +95,9 @@ export const HANDLERS: Record<string, Handler> = {
     const r = E(ctx)(() => engine.chatRequest(s, { message: req.message, now: ctx.now }));
     if (r.refused) return { state: s, result: { refused: r.refused } };
     let st = E(ctx)(() => engine.addTurn(s, "user", req.message, ctx.now));
-    // After a no, every loosening waits for the morning; the relay keeps such changes off the card (QA round 3, N1).
-    const locked = ((s.denied || {}).rules || 0) > ((s.clock && s.clock.floor) || ctx.now);
-    const payload = { ...withId(ctx, r.payload), loosenLocked: locked || r.payload.loosenLocked === true };
+    // A no holds only the rule it was about (Maxime, 2026-10-18); the engine refuses the held parts itself, so the
+    // payload goes as the engine built it.
+    const payload = withId(ctx, r.payload);
     const answer = await claude(ctx, { name: "rules", max: intVar(ctx.env.MAX_RULES_PER_INSTALL, 40) }, () => rules(ctx.env, rulesInput(payload)));
     const preview = answer.ok ? E(ctx)(() => engine.chatPreview(st, answer.data, ctx.now)) : null;
     if (!answer.ok || preview.error) {

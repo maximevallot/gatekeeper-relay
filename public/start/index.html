@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Try Gatekeeper</title>
+<style>
+  :root {
+    --accent: #3B5BDB; --ground: #F6F7FB; --surface: #FFFFFF; --ink: #161A23; --muted: #5B6270; --line: #E3E6EE;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --accent: #7D96FF; --ground: #171A20; --surface: #1F232B; --ink: #ECEFF4; --muted: #A3AAB7; --line: #2E333D; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  main { max-width: 34rem; margin: 0 auto; padding: 48px 16px 64px; }
+  h1 { font-size: 2rem; line-height: 1.15; margin: 0 0 8px; }
+  .lead { color: var(--muted); margin: 0 0 28px; }
+  .download { display: inline-block; background: var(--accent); color: #fff; text-decoration: none; font-weight: 600; padding: 14px 22px; border-radius: 12px; }
+  @media (prefers-color-scheme: dark) { .download { color: #0F1424; } }
+  .small { color: var(--muted); font-size: 0.875rem; margin: 10px 0 0; }
+  ol { list-style: none; counter-reset: step; padding: 0; margin: 36px 0 0; display: grid; gap: 12px; }
+  ol li { counter-increment: step; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 16px 16px 60px; position: relative; }
+  ol li::before { content: counter(step); position: absolute; left: 16px; top: 14px; width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: var(--surface); font-weight: 700; display: grid; place-items: center; font-size: 0.95rem; }
+  code { font: 0.95em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--ground); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; }
+  button.copy { font: inherit; font-size: 0.8rem; color: var(--accent); background: none; border: 1px solid var(--line); border-radius: 6px; padding: 1px 8px; margin-left: 4px; cursor: pointer; }
+  h2 { font-size: 1.1rem; margin: 40px 0 10px; }
+  ul.expect { margin: 0; padding-left: 20px; }
+  ul.expect li { margin-bottom: 6px; }
+  footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.875rem; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Try Gatekeeper</h1>
+  <p class="lead">A daily budget for the sites that pull you away. Thanks for being one of the first to try it.</p>
+
+  <a class="download" href="Gatekeeper-0.2.0.zip" download>Download Gatekeeper</a>
+  <p class="small">For Chrome, Edge, Brave or Arc on a computer · 0.2.0 · 110 KB</p>
+
+  <ol>
+    <li>Open the download (on Windows, choose Extract all).</li>
+    <li>Go to <code>chrome://extensions</code><button class="copy" data-copy="chrome://extensions">Copy</button> (Edge: <code>edge://extensions</code><button class="copy" data-copy="edge://extensions">Copy</button>, Brave: <code>brave://extensions</code><button class="copy" data-copy="brave://extensions">Copy</button>). Turn on <b>Developer mode</b>, top right (in Edge, on the left).</li>
+    <li>Click <b>Load unpacked</b> and choose the Gatekeeper folder. On Windows, pick the inner Gatekeeper folder, the one with <code>manifest.json</code> in it.</li>
+    <li>Click the puzzle piece in the toolbar and pin Gatekeeper. Its welcome page opens on its own.</li>
+  </ol>
+
+  <h2>What to expect</h2>
+  <ul class="expect">
+    <li>The first week it only watches. Browse as you normally would.</li>
+    <li>Then you set your limits, or tell it what you want in a sentence.</li>
+    <li>Use one browser for now, and keep the Gatekeeper folder: deleting it removes Gatekeeper.</li>
+    <li>On Windows, if Chrome asks to disable developer mode extensions, just close the message.</li>
+  </ul>
+
+  <footer>
+    What it sends and keeps: <a href="/privacy/0.2">privacy policy</a>. Something broke or felt confusing? Tell Maxime.
+  </footer>
+</main>
+<script>
+  for (const b of document.querySelectorAll("button.copy")) {
+    b.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = "Copied"; }
+      catch { b.textContent = "Copy it by hand"; }
+      setTimeout(() => (b.textContent = "Copy"), 1500);
+    });
+  }
+</script>
+</body>
+</html>

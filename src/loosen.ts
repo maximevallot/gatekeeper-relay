@@ -1,6 +1,7 @@
 import loosenPrompt from "../prompts/loosen.md";
 import { askClaude } from "./claude";
 import type { Env } from "./env";
+import { voice } from "./voice";
 import { examText, type LoosenInput } from "./validate";
 
 export interface LoosenResult {
@@ -61,7 +62,7 @@ export function enforceLoosen(data: unknown, asked: boolean, kind: LoosenInput["
   const d = data as Record<string, unknown>;
   const decision = d.decision;
   if (decision !== "allow" && decision !== "deny" && decision !== "ask") return FALLBACK;
-  const reply = typeof d.reply === "string" ? d.reply.trim().slice(0, 280) : "";
+  const reply = typeof d.reply === "string" ? voice(d.reply.trim()).slice(0, 280) : "";
   if (!reply) return FALLBACK;
   if (decision === "ask" && asked) return { decision: "deny", when: null, reply };
   if (decision !== "allow") return { decision, when: null, reply };
