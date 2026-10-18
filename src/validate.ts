@@ -90,7 +90,8 @@ export interface GateInput {
   installId: string;
   goal: string;
   site: string;
-  kind: Kind;
+  /** "site": the site has its own limit, and minutesUsed and budget are that site's own. */
+  kind: Kind | "site";
   minutesUsed: number;
   budget: number;
   deadlines: string[];
@@ -101,7 +102,7 @@ export interface GateInput {
 
 export function gateInput(body: Obj): GateInput {
   const kind = body.kind;
-  if (typeof kind !== "string" || !(KINDS as readonly string[]).includes(kind)) throw new BadRequest("invalid_kind");
+  if (typeof kind !== "string" || !(kind === "site" || (KINDS as readonly string[]).includes(kind))) throw new BadRequest("invalid_kind");
   const rawDeadlines = body.deadlines ?? [];
   if (!Array.isArray(rawDeadlines) || rawDeadlines.length > 10) throw new BadRequest("invalid_deadlines");
   const deadlines = rawDeadlines.map((d) => {
@@ -117,7 +118,7 @@ export function gateInput(body: Obj): GateInput {
     installId: installId(body),
     goal: str(body, "goal", 300, false),
     site: domain(body.site, "site"),
-    kind: kind as Kind,
+    kind: kind as Kind | "site",
     minutesUsed: minutes(body, "minutesUsed"),
     budget: minutes(body, "budget"),
     deadlines,

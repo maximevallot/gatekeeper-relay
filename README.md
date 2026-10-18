@@ -44,7 +44,7 @@ The person is at the gate page of a blocked site and typed one message. The gate
 - The server has the last word on minutes: a pass is at least 1 and at most `MAX_PASS_MINUTES` (10), whatever the model says. In exam mode the cap is `MAX_EXAM_PASS_MINUTES` (5), and the prompt allows a pass only for a page that serves the exam ("what is ROCE").
 - If the model refuses, or returns something that is not one of the three decisions, the answer is `deny` with 0 minutes.
 - `deadlines` is up to 10 items, each `{title, due}` or a plain string: the events from the student's calendar link for the next 48 hours. The prompt tells the model it cannot know whether a deadline was submitted, so it never calls one overdue. (On 14 October the old gate told Maxime a worksheet was overdue that Anders had already submitted for the team.)
-- Limits: `message` 1 to 500 characters, `goal` up to 300, `minutesUsed` and `budget` 0 to 1440, `kind` one of the eight kinds below.
+- Limits: `message` 1 to 500 characters, `goal` up to 300, `minutesUsed` and `budget` 0 to 1440, `kind` one of the eight kinds below, or `"site"` for a site with its own limit (then `minutesUsed` and `budget` are that site's own).
 
 ### `POST /sort`
 
@@ -189,7 +189,7 @@ npm run check
 `npm run check` runs three things, none of which needs a key or an account or touches the network:
 
 1. `npm run typecheck`: TypeScript.
-2. `npm test`: 61 vitest tests inside the Workers runtime (`@cloudflare/vitest-plugin`), with a mocked Anthropic API. They cover the request sent to Claude, the minute clamp, refusals and bad output, upstream failures, installId and field validation, every cap, the sort cache, origins, the rules chat and video judge (their checks on the model output, input validation and allowances), loosening, and exam mode across `/rules`, `/gate` and `/loosen`.
+2. `npm test`: 62 vitest tests inside the Workers runtime (`@cloudflare/vitest-plugin`), with a mocked Anthropic API. They cover the request sent to Claude, the minute clamp, refusals and bad output, upstream failures, installId and field validation, every cap, the sort cache, origins, the rules chat and video judge (their checks on the model output, input validation and allowances), loosening, and exam mode across `/rules`, `/gate` and `/loosen`.
 3. `npm run smoke`: starts the real Worker under `wrangler dev`, points it at a fake Anthropic server on localhost ([scripts/mock-anthropic.mjs](scripts/mock-anthropic.mjs)) and checks both endpoints end to end.
 
 To try it against the real API locally, copy `.dev.vars.example` to `.dev.vars`, put a key in it, and run `npm run dev`. `.dev.vars` is git-ignored.

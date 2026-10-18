@@ -35,8 +35,9 @@ export function gateUserMessage(input: GateInput, date: string): string {
     `exam mode: ${exam}`,
     `goal: ${input.goal || "not given"}`,
     `site: ${input.site}`,
-    `kind: ${input.kind}`,
-    `minutes used today on ${input.kind}: ${input.minutesUsed} of a ${input.budget}-minute budget`,
+    ...(input.kind === "site"
+      ? ["kind: its own limit", `minutes used today on this site: ${input.minutesUsed} of its own ${input.budget}-minute limit`]
+      : [`kind: ${input.kind}`, `minutes used today on ${input.kind}: ${input.minutesUsed} of a ${input.budget}-minute budget`]),
     `deadlines:\n${deadlines}`,
     "",
     // Strip anything that looks like our closing tag so the message cannot step outside it.

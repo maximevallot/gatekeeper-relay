@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import rulesPrompt from "../prompts/rules.md";
-import { mockAnthropic, post } from "./helpers";
+import { gateBody, mockAnthropic, post } from "./helpers";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -98,5 +98,16 @@ describe("a limit on one site", () => {
       expect(res.status, JSON.stringify(siteLimits)).toBe(400);
     }
     expect(calls).toHaveLength(0);
+  });
+
+  it("lets the gate of a site with its own limit talk, with that site's own minutes", async () => {
+    const calls = mockAnthropic({ answer: { decision: "deny", minutes: 0, reply: "No. lequipe.fr's 15 minutes are spent for today." } });
+    const res = await post("/gate", gateBody({ site: "lequipe.fr", kind: "site", minutesUsed: 15, budget: 15, message: "just the score" }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ decision: "deny", minutes: 0 });
+    const user: string = calls[0]!.body.messages[0].content;
+    expect(user).toContain("kind: its own limit");
+    expect(user).toContain("minutes used today on this site: 15 of its own 15-minute limit");
+    expect(user).not.toContain("kind: site");
   });
 });
