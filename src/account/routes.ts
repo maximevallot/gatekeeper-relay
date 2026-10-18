@@ -2,7 +2,7 @@
 // object, named by the account id in the device's token, or found through a 6-digit code when joining.
 
 import type { Env } from "../env";
-import { reserveCall, today } from "../quota";
+import { today } from "../quota";
 import { isObject } from "../validate";
 import { CONTRACT, parseToken, type DeviceInfo, type Reply } from "./account";
 import { validTimeZone } from "./tz";
@@ -23,13 +23,13 @@ function deviceInfo(raw: unknown): DeviceInfo | null {
 }
 
 /**
- * A daily count per network address for creating accounts and trying codes. Only the address's own counter
+ * A daily count per network address (creating accounts, trying codes) or per account (making codes). Only its own counter
  * is used: these are not Claude calls, so they don't touch the address's Claude cap. Cloudflare always
  * gives the address; without one (tests) there is nothing to count by.
  */
-async function capped(env: Env, ip: string | null, name: string, max: number): Promise<boolean> {
-  if (!ip) return false;
-  const counter = env.QUOTA.get(env.QUOTA.idFromName(`${name}:${ip}`));
+async function capped(env: Env, who: string | null, name: string, max: number): Promise<boolean> {
+  if (!who) return false;
+  const counter = env.QUOTA.get(env.QUOTA.idFromName(`${name}:${who}`));
   return !(await counter.reserve(today(), max, null));
 }
 
@@ -68,8 +68,7 @@ export async function handleAccount(path: string, body: Record<string, unknown>,
     case "/account/sync":
       return a.sync(token, body, ip, now);
     case "/account/code": {
-      const full = await reserveCall(env, t.accountId, null, { name: "codes", maxCalls: CODES_PER_ACCOUNT, shared: false });
-      if (full) return fail(429, "too_many_codes");
+      if (await capped(env, t.accountId, "codes", CODES_PER_ACCOUNT)) return fail(429, "too_many_codes");
       return a.code(token, now);
     }
     case "/account/devices":
