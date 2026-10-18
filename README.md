@@ -2,7 +2,7 @@
 
 The server that stands between the Gatekeeper browser extension and Claude. It holds the Anthropic API key as a Cloudflare secret, so the key never ships inside the extension, and it enforces the limits that keep a student, or someone abusing the endpoint, from spending more than a few cents a day.
 
-It is a Cloudflare Worker in TypeScript. It has five endpoints, all `POST` with a JSON body (plus `GET /privacy`, the privacy policy), and one model: Claude Haiku 5.5 (`claude-haiku-5-5`, the newest Haiku as of 2026-10-16, $0.10 per million input tokens and $0.50 per million output tokens).
+It is a Cloudflare Worker in TypeScript. It has five endpoints, all `POST` with a JSON body (plus `GET /privacy`, the privacy policy, and `HEAD /`, a 204 whose `Date` header the extension reads after the computer's clock jumps; it carries nothing and counts against no cap), and one model: Claude Haiku 5.5 (`claude-haiku-5-5`, the newest Haiku as of 2026-10-16, $0.10 per million input tokens and $0.50 per million output tokens).
 
 Milestone 1 of Gatekeeper makes no network calls. Milestone 2 uses `/gate` (the gate's single box for a real need) and `/sort` (sorting sites the extension does not know into a kind). Milestone 3 adds `/rules` (the rules chat), `/judge` (YouTube video rules) and `/loosen` (the agent that holds the key to loosening); its design is `~/brain/outputs/html/2026-10-16-gatekeeper-rules-by-talking.html`. The "one Gatekeeper" plan (`~/brain/outputs/html/2026-10-17-gatekeeper-one-model.html`) taught `/rules`, `/gate` and `/loosen` about exam mode and the local time, and limited the chat to the extension's five kinds.
 
@@ -190,7 +190,7 @@ npm run check
 `npm run check` runs three things, none of which needs a key or an account or touches the network:
 
 1. `npm run typecheck`: TypeScript.
-2. `npm test`: 77 vitest tests inside the Workers runtime (`@cloudflare/vitest-plugin`), with a mocked Anthropic API. They cover the request sent to Claude, the minute clamp, refusals and bad output, upstream failures, installId and field validation, every cap, the sort cache, origins, the rules chat and video judge (their checks on the model output, input validation and allowances), loosening, and exam mode across `/rules`, `/gate` and `/loosen`.
+2. `npm test`: 79 vitest tests inside the Workers runtime (`@cloudflare/vitest-plugin`), with a mocked Anthropic API. They cover the request sent to Claude, the minute clamp, refusals and bad output, upstream failures, installId and field validation, every cap, the sort cache, origins, the rules chat and video judge (their checks on the model output, input validation and allowances), loosening, and exam mode across `/rules`, `/gate` and `/loosen`.
 3. `npm run smoke`: starts the real Worker under `wrangler dev`, points it at a fake Anthropic server on localhost ([scripts/mock-anthropic.mjs](scripts/mock-anthropic.mjs)) and checks both endpoints end to end.
 
 To try it against the real API locally, copy `.dev.vars.example` to `.dev.vars`, put a key in it, and run `npm run dev`. `.dev.vars` is git-ignored.

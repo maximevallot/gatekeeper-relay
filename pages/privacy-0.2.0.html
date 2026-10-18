@@ -24,7 +24,7 @@
 <body>
 <main>
 <h1>Gatekeeper privacy policy</h1>
-<p class="muted">Last updated 17 October 2026 (added exam mode, your local time and calendar deadlines to what the chat, the gate and loosening send, and your talk with Gatekeeper kept in your browser). Applies to the Gatekeeper browser extension.</p>
+<p class="muted">Last updated 17 October 2026 (added exam mode, your local time and calendar deadlines to what the chat, the gate and loosening send, your talk with Gatekeeper kept in your browser, and the time check). Applies to the Gatekeeper browser extension.</p>
 
 <p>Gatekeeper is made by Maxime Vallot, an individual developer. Contact: mvallot22@gmail.com.</p>
 
@@ -32,7 +32,7 @@
 <ul>
   <li>Your rules, your budgets and the time you spend on sites stay in your browser. Two exceptions: when you use the talking gate, the message sends the few facts it needs to answer; and when you change your rules by chat, your rules are sent so they can be changed. Both are listed below. The time you spend on sites is never sent by the chat.</li>
   <li>Gatekeeper never reads what is on a web page. It has no code that runs inside web pages.</li>
-  <li>Four features send a little data to our server, and all are off until you turn them on: the gate that can talk back, sorting sites Gatekeeper doesn't know, changing your rules by chat, and judging YouTube videos for your video rules. Gatekeeper asks you before the first request of each.</li>
+  <li>Apart from a time check that carries nothing, four features send a little data to our server, and all are off until you turn them on: the gate that can talk back, sorting sites Gatekeeper doesn't know, changing your rules by chat, and judging YouTube videos for your video rules. Gatekeeper asks you before the first request of each.</li>
   <li>We do not sell your data, use it for advertising, or build a profile of you.</li>
 </ul>
 
@@ -56,6 +56,7 @@
 
 <h2>What is sent to our server, and only if you turn it on</h2>
 <p>Our server is a small relay that passes a request to an AI model and returns the answer.</p>
+<p>One request goes to it whatever you turn on: when your computer's clock jumps (after sleep, or if it's changed), Gatekeeper asks its relay for the time, so a changed clock can't end a limit early. Nothing is sent with that request, not even your install number.</p>
 <div class="wrap">
 <table>
   <tr><th>Feature</th><th>What is sent</th><th>When</th></tr>

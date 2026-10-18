@@ -1,5 +1,5 @@
 import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import worker from "../src/index";
 import { baseEnv } from "./helpers";
 
@@ -23,5 +23,30 @@ describe("GET /privacy", () => {
   it("answers HEAD; other methods get the usual not_found", async () => {
     expect((await get("/privacy", "HEAD")).status).toBe(200);
     expect((await get("/privacy", "POST")).status).toBe(404);
+  });
+});
+
+describe("HEAD / (the extension's time check)", () => {
+  it("answers 204 with the time, uncached, without any Claude call or cap", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    for (let i = 0; i < 5; i++) {
+      const res = await get("/", "HEAD");
+      expect(res.status).toBe(204);
+      const date = Date.parse(res.headers.get("Date") ?? "");
+      expect(Math.abs(date - Date.now())).toBeLessThan(5000);
+      expect(res.headers.get("Cache-Control")).toBe("no-store");
+    }
+    expect((await get("/", "GET")).status).toBe(204);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  it("lets the extension read the Date header", async () => {
+    const ctx = createExecutionContext();
+    const origin = "chrome-extension://abcdefghijklmnopabcdefghijklmnop";
+    const res = await worker.fetch(new Request("https://relay.test/", { method: "HEAD", headers: { Origin: origin } }), baseEnv, ctx);
+    await waitOnExecutionContext(ctx);
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe(origin);
+    expect(res.headers.get("Access-Control-Expose-Headers")).toBe("Date");
   });
 });

@@ -63,6 +63,19 @@ async function readBody(request: Request, max: number): Promise<Record<string, u
 
 async function handle(request: Request, env: Env, ctx: ExecutionContext, origin: string | null): Promise<Response> {
   const { pathname } = new URL(request.url);
+  // The time check: after the computer's clock jumps, the extension reads this response's Date header.
+  // It sends nothing, and it counts against no cap.
+  if (pathname === "/" && (request.method === "HEAD" || request.method === "GET")) {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        Date: new Date().toUTCString(),
+        "Cache-Control": "no-store",
+        ...corsHeaders(origin),
+        ...(origin ? { "Access-Control-Expose-Headers": "Date" } : {}),
+      },
+    });
+  }
   // The privacy policy the Chrome Web Store listing links to.
   if (pathname === "/privacy" && (request.method === "GET" || request.method === "HEAD")) {
     return new Response(request.method === "HEAD" ? null : privacyPage, {
