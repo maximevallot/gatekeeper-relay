@@ -62,3 +62,14 @@ describe("GET /privacy/0.2 (the first testers' policy)", () => {
     expect((await get("/privacy/0.2", "HEAD")).status).toBe(200);
   });
 });
+
+describe("origins", () => {
+  it("lets Edge's extension:// origin through, like chrome-extension://, and nothing else", async () => {
+    for (const [origin, ok] of [["extension://abcdefghijklmnopabcdefghijklmnop", true], ["chrome-extension://abcdefghijklmnopabcdefghijklmnop", true], ["https://evil.example", false]] as const) {
+      const ctx = createExecutionContext();
+      const res = await worker.fetch(new Request("https://relay.test/", { method: "HEAD", headers: { Origin: origin } }), baseEnv, ctx);
+      await waitOnExecutionContext(ctx);
+      expect(res.headers.get("Access-Control-Allow-Origin") === origin).toBe(ok);
+    }
+  });
+});

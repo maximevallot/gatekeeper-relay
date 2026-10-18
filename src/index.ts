@@ -19,7 +19,8 @@ const PATHS = ["/gate", "/sort", "/judge", "/rules", "/loosen"];
 function allowedOrigin(origin: string | null, env: Env): boolean {
   if (origin === null) return true; // not a browser page: curl, tests, or an extension with host permission
   const list = (env.ALLOWED_ORIGINS || "").split(",").map((s) => s.trim()).filter(Boolean);
-  return list.length ? list.includes(origin) : origin.startsWith("chrome-extension://");
+  // Chrome, Brave, Arc, Opera and Vivaldi use chrome-extension://; Edge may show extension://, so both are let through.
+  return list.length ? list.includes(origin) : origin.startsWith("chrome-extension://") || origin.startsWith("extension://");
 }
 
 function corsHeaders(origin: string | null): Record<string, string> {
