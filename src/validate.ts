@@ -81,7 +81,8 @@ function exam(body: Obj): Exam | null {
   if (!isObject(v) || !isLocalTime(v.until)) throw new BadRequest("invalid_exam");
   const goal = v.goal ?? "";
   if (typeof goal !== "string" || goal.length > 300) throw new BadRequest("invalid_exam");
-  const at = v.at ?? null;
+  // The extension calls it examAt; at is accepted too.
+  const at = v.examAt ?? v.at ?? null;
   if (at !== null && !isLocalTime(at)) throw new BadRequest("invalid_exam");
   return { until: v.until, goal: goal.replace(/\s+/g, " ").replace(/"/g, "'").trim(), at };
 }

@@ -11,7 +11,7 @@ Milestone 1 of Gatekeeper makes no network calls. Milestone 2 uses `/gate` (the 
 `/rules`, `/gate` and `/loosen` also take two optional fields:
 
 - `now`: the student's local time with its offset, such as `"2026-10-17T14:05:00-04:00"`. Without it, the prompts get the UTC date.
-- `exam`: `{ "until": "2026-10-21T08:30:00-04:00", "goal": "Midterm 15.425" }` while exam mode is on, `null` or absent when it is off. `until` uses the same format as `now`. An optional `at` is the exam's own time (a calendar event's start, or one the student gave), in the same format.
+- `exam`: `{ "until": "2026-10-21T08:30:00-04:00", "goal": "Midterm 15.425" }` while exam mode is on, `null` or absent when it is off. `until` uses the same format as `now`. An optional `examAt` (`at` is accepted too) is the exam's own time: the start of the latest exam event in the calendar that falls inside exam mode and has begun, or null. Same format.
 
 A malformed `now` or `exam` is a 400 (`invalid_now`, `invalid_exam`). Fields the relay does not know are ignored, so the extension can send new ones before the relay is redeployed.
 
@@ -98,7 +98,7 @@ The agent that holds the key to loosening: a request to loosen a rule or end exa
 ```
 
 - `kind` is `rules` or `exam`. `decision` is `allow`, `deny` or `ask`; `ask` comes at most once (with `asked` set, an ask counts as no).
-- `when` is `"now"` or `"morning"` with `allow`, `null` otherwise. Every yes applies the next morning, except ending exam mode once the exam can be over: `"now"` is allowed only when the relay's own clock (never the device's) is past `exam.at`, or within 3 hours of `exam.until` (`canEndNow` in [src/loosen.ts](src/loosen.ts)). Before that, a model's "now" is turned into "morning" and the reply says the exam's time hasn't come yet, and the prompt treats "it's over" as untrue. This closes QA round 2's C3, where "exam is over" ended exam mode two days before the midterm. An extension that gets no `when` (an older relay) should treat a yes as `"morning"`.
+- `when` is `"now"` or `"morning"` with `allow`, `null` otherwise. Every yes applies the next morning, except ending exam mode once the exam can be over: `"now"` is allowed only when `exam.examAt` is known and the relay's own clock (never the device's) is past it (`canEndNow` in [src/loosen.ts](src/loosen.ts)); the extension applies the same rule. Before that, a model's "now" is turned into "morning" and the reply says the exam's time hasn't come yet, and the prompt treats "it's over" as untrue. This closes QA round 2's C3, where "exam is over" ended exam mode two days before the midterm. An extension that gets no `when` (an older relay) should treat a yes as `"morning"`.
 
 ### `POST /judge`
 
@@ -190,7 +190,7 @@ npm run check
 `npm run check` runs three things, none of which needs a key or an account or touches the network:
 
 1. `npm run typecheck`: TypeScript.
-2. `npm test`: 76 vitest tests inside the Workers runtime (`@cloudflare/vitest-plugin`), with a mocked Anthropic API. They cover the request sent to Claude, the minute clamp, refusals and bad output, upstream failures, installId and field validation, every cap, the sort cache, origins, the rules chat and video judge (their checks on the model output, input validation and allowances), loosening, and exam mode across `/rules`, `/gate` and `/loosen`.
+2. `npm test`: 77 vitest tests inside the Workers runtime (`@cloudflare/vitest-plugin`), with a mocked Anthropic API. They cover the request sent to Claude, the minute clamp, refusals and bad output, upstream failures, installId and field validation, every cap, the sort cache, origins, the rules chat and video judge (their checks on the model output, input validation and allowances), loosening, and exam mode across `/rules`, `/gate` and `/loosen`.
 3. `npm run smoke`: starts the real Worker under `wrangler dev`, points it at a fake Anthropic server on localhost ([scripts/mock-anthropic.mjs](scripts/mock-anthropic.mjs)) and checks both endpoints end to end.
 
 To try it against the real API locally, copy `.dev.vars.example` to `.dev.vars`, put a key in it, and run `npm run dev`. `.dev.vars` is git-ignored.

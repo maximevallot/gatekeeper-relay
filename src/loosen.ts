@@ -21,17 +21,13 @@ const SCHEMA = {
   additionalProperties: false,
 };
 
-/** How close to exam mode's end a claim that the exam is over may end it at once, without a known exam time. */
-const END_WINDOW_MS = 3 * 60 * 60 * 1000;
-
 /**
- * Whether ending exam mode at once is possible at all: the relay's own clock (never the device's) is past
- * the exam's own time, or within three hours of exam mode's end. Before that, the exam cannot be over yet.
+ * Whether ending exam mode at once is possible at all: the exam's own time (examAt) is known and the
+ * relay's own clock, never the device's, is past it. The extension applies the same rule.
  */
 export function canEndNow(input: LoosenInput, serverNow = Date.now()): boolean {
-  if (input.kind !== "exam" || !input.exam) return false;
-  if (input.exam.at && serverNow >= Date.parse(input.exam.at)) return true;
-  return serverNow >= Date.parse(input.exam.until) - END_WINDOW_MS;
+  if (input.kind !== "exam" || !input.exam?.at) return false;
+  return serverNow >= Date.parse(input.exam.at);
 }
 
 /** What the key-holder says when the model gives nothing usable: the rule stays. */

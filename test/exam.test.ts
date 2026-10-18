@@ -174,11 +174,20 @@ describe("/loosen ending exam mode", () => {
     expect(calls[0]!.body.messages[0].content).toContain("can the exam be over by now: yes");
   });
 
-  it("without the exam's time, ends it now only within 3 hours of exam mode's end", async () => {
+  it("without the exam's time, never ends it now, even just before exam mode's end", async () => {
+    const calls = mockAnthropic({ answer: ENDS_NOW });
+    expect(await (await post("/loosen", loosenBody({ until: inHours(1), goal: "" }))).json()).toMatchObject({ when: "morning" });
+    expect(calls[0]!.body.messages[0].content).toContain("can the exam be over by now: no");
+  });
+
+  it("reads the exam's time as examAt, the extension's name, or at", async () => {
+    const calls = mockAnthropic({ answer: ENDS_NOW });
+    const exam = { until: inHours(20), goal: "15.425 midterm", examAt: inHours(-2) };
+    expect(await (await post("/loosen", loosenBody(exam))).json()).toEqual(ENDS_NOW);
+    expect(calls[0]!.body.messages[0].content).toContain(`the exam itself is at ${exam.examAt}`);
+    expect((await post("/loosen", loosenBody({ ...exam, examAt: "Monday" }))).status).toBe(400);
     mockAnthropic({ answer: ENDS_NOW });
-    expect(await (await post("/loosen", loosenBody({ until: inHours(2), goal: "" }))).json()).toMatchObject({ when: "now" });
-    mockAnthropic({ answer: ENDS_NOW });
-    expect(await (await post("/loosen", loosenBody({ until: inHours(4), goal: "" }))).json()).toMatchObject({ when: "morning" });
+    expect(await (await post("/loosen", loosenBody({ until: inHours(20), goal: "", examAt: null }))).json()).toMatchObject({ when: "morning" });
   });
 
   it("judges by the relay's clock, not the device's", async () => {
