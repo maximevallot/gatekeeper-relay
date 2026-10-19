@@ -65,7 +65,7 @@ describe("GET /privacy/0.2 (the first testers' policy)", () => {
 
 describe("origins", () => {
   it("lets Edge's extension:// origin through, like chrome-extension://, and nothing else", async () => {
-    for (const [origin, ok] of [["extension://abcdefghijklmnopabcdefghijklmnop", true], ["chrome-extension://abcdefghijklmnopabcdefghijklmnop", true], ["https://evil.example", false]] as const) {
+    for (const [origin, ok] of [["extension://abcdefghijklmnopabcdefghijklmnop", true], ["safari-web-extension://8F2A1C3E-0B4D-4E5F-9A6B-7C8D9E0F1A2B", true], ["chrome-extension://abcdefghijklmnopabcdefghijklmnop", true], ["https://evil.example", false]] as const) {
       const ctx = createExecutionContext();
       const res = await worker.fetch(new Request("https://relay.test/", { method: "HEAD", headers: { Origin: origin } }), baseEnv, ctx);
       await waitOnExecutionContext(ctx);
