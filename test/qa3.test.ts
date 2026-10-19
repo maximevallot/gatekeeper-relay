@@ -84,16 +84,11 @@ describe("QA round 3, #3 (chat N2): an exam that's over gets a yes, never a flat
     now: "2026-10-18T00:19:28-04:00",
   };
 
-  it("tells the agent the exam's time isn't known, so a yes ends exam mode tomorrow morning", async () => {
-    const calls = mockAnthropic({ answer: { decision: "allow", when: "morning", reply: "OK: exam mode ends tomorrow morning." } });
+  it("tells the agent a yes ends exam mode now, and never to answer 'it's over' with a flat no", async () => {
+    const calls = mockAnthropic({ answer: { decision: "allow", when: "now", reply: "Good luck with the result. Exam mode ends now." } });
     const out = await (await post("/loosen", body)).json();
-    expect(out).toEqual({ decision: "allow", when: "morning", reply: "OK: exam mode ends tomorrow morning." });
-    expect(calls[0]!.body.messages[0].content).toContain("the exam's own time: not known to have passed: a yes ends exam mode tomorrow morning");
-    expect(loosenPrompt).toContain("never answer a student who says the exam is over with a flat no");
-  });
-
-  it("keeps the morning when the model says now without the exam's time", async () => {
-    mockAnthropic({ answer: { decision: "allow", when: "now", reply: "Exam mode ends now." } });
-    expect(await (await post("/loosen", body)).json()).toEqual({ decision: "allow", when: "morning", reply: "OK: exam mode ends tomorrow morning." });
+    expect(out).toEqual({ decision: "allow", when: "now", reply: "Good luck with the result. Exam mode ends now." });
+    expect(calls[0]!.body.messages[0].content).not.toContain("tomorrow morning");
+    expect(loosenPrompt).toContain("Never answer a student who says the exam is over, or that there is no exam, with a flat no");
   });
 });
